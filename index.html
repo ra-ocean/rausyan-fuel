@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Project Rausyan Fuel v.1</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#0a0a0f; color:#f0f0f0; font-family:'DM Sans',-apple-system,sans-serif; min-height:100vh; }
+.app { max-width:500px; margin:0 auto; padding:20px 16px; }
+
+/* Header */
+.header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:22px; }
+.logo { font-size:18px; font-weight:800; background:linear-gradient(135deg,#818cf8,#22c55e); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.subtitle { font-size:10px; color:rgba(255,255,255,0.25); margin-top:3px; letter-spacing:1px; text-transform:uppercase; }
+.refresh-btn { background:rgba(129,140,248,0.1); border:1px solid rgba(129,140,248,0.2); border-radius:8px; padding:6px 12px; font-size:10px; color:#818cf8; font-weight:600; cursor:pointer; font-family:inherit; }
+.refresh-btn:active { opacity:0.7; }
+
+/* Status */
+.status-bar { font-size:9px; color:rgba(255,255,255,0.15); text-align:right; margin-bottom:8px; }
+.error-box { background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.2); border-radius:16px; padding:14px 20px; margin-bottom:14px; color:#ef4444; font-size:12px; text-align:center; }
+
+/* Tabs */
+.tabs { display:flex; background:rgba(255,255,255,0.04); border-radius:10px; padding:3px; margin-bottom:18px; }
+.tab { flex:1; padding:7px 0; border:none; border-radius:8px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.8px; cursor:pointer; transition:all 0.2s; background:transparent; color:rgba(255,255,255,0.35); font-family:inherit; }
+.tab.active { background:rgba(129,140,248,0.2); color:#818cf8; }
+.tab.active-body { background:rgba(236,72,153,0.2); color:#ec4899; }
+
+/* Cards */
+.card { background:rgba(255,255,255,0.03); border-radius:16px; padding:20px; margin-bottom:14px; border:1px solid rgba(255,255,255,0.05); }
+.section-label { font-size:10px; text-transform:uppercase; letter-spacing:1.5px; color:rgba(255,255,255,0.3); margin-bottom:14px; }
+
+/* Date Nav */
+.date-nav { display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; }
+.date-btn { background:rgba(255,255,255,0.06); border:none; color:#f0f0f0; padding:5px 13px; border-radius:6px; cursor:pointer; font-size:15px; }
+.date-text { font-size:13px; font-weight:600; color:rgba(255,255,255,0.7); }
+
+/* Ring */
+.ring-wrap { position:relative; margin:0 auto; }
+.ring-center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.ring-value { font-size:30px; font-weight:800; letter-spacing:-1px; }
+.ring-target { font-size:10px; color:rgba(255,255,255,0.4); text-transform:uppercase; letter-spacing:1.5px; margin-top:1px; }
+.ring-remaining { font-size:11px; font-weight:600; margin-top:5px; }
+
+/* Macro Bar */
+.macro { margin-bottom:14px; }
+.macro-header { display:flex; justify-content:space-between; margin-bottom:5px; align-items:baseline; }
+.macro-label { font-size:11px; color:rgba(255,255,255,0.5); text-transform:uppercase; letter-spacing:1.2px; }
+.macro-value { font-size:13px; font-weight:700; }
+.macro-target { font-weight:400; color:rgba(255,255,255,0.35); font-size:11px; }
+.macro-track { height:7px; background:rgba(255,255,255,0.06); border-radius:4px; overflow:hidden; }
+.macro-fill { height:100%; border-radius:4px; transition:width 0.8s ease; }
+.macro-pct { text-align:right; margin-top:2px; font-size:10px; color:rgba(255,255,255,0.3); }
+
+/* Table */
+.meal-table { width:100%; border-collapse:collapse; font-size:12px; }
+.meal-table th { padding:7px 8px; text-align:left; font-size:9px; text-transform:uppercase; letter-spacing:1.2px; color:rgba(255,255,255,0.3); font-weight:500; border-bottom:1px solid rgba(255,255,255,0.08); }
+.meal-table td { padding:8px; border-bottom:1px solid rgba(255,255,255,0.04); }
+.meal-badge { padding:2px 7px; border-radius:4px; font-size:10px; font-weight:600; }
+
+/* Stats row */
+.stats-row { display:flex; justify-content:space-around; }
+.stat { text-align:center; }
+.stat-label { font-size:10px; color:rgba(255,255,255,0.35); text-transform:uppercase; letter-spacing:1px; margin-bottom:3px; }
+.stat-value { font-size:22px; font-weight:800; }
+.stat-sub { font-size:10px; color:rgba(255,255,255,0.3); margin-top:1px; }
+
+/* Measure cards */
+.measure-grid { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+.measure-card { background:rgba(255,255,255,0.04); border-radius:10px; padding:12px 14px; border:1px solid rgba(255,255,255,0.06); flex:1 1 calc(33% - 8px); min-width:90px; }
+.measure-label { font-size:8px; color:rgba(255,255,255,0.35); text-transform:uppercase; letter-spacing:0.8px; margin-bottom:5px; }
+.measure-value { font-size:20px; font-weight:800; }
+.measure-unit { font-size:10px; font-weight:400; color:rgba(255,255,255,0.35); margin-left:2px; }
+
+/* Chart pills */
+.pill-row { display:flex; gap:5px; margin-bottom:14px; flex-wrap:wrap; }
+.pill { padding:4px 9px; border-radius:6px; border:none; cursor:pointer; font-size:9px; font-weight:600; font-family:inherit; }
+
+/* Loading */
+.loading { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; }
+.spinner { width:40px; height:40px; border:3px solid rgba(255,255,255,0.1); border-top:3px solid #818cf8; border-radius:50%; animation:spin 1s linear infinite; margin-top:12px; }
+@keyframes spin { to { transform:rotate(360deg) } }
+
+/* Footer */
+.footer { text-align:center; padding:20px 0 8px; font-size:9px; color:rgba(255,255,255,0.12); }
+
+/* Scrollable table */
+.table-scroll { overflow-x:auto; }
+
+/* Bar chart */
+.bar-chart { position:relative; display:flex; align-items:flex-end; padding:0 4px; }
+.bar-item { flex:1; }
+.bar { border-radius:3px; min-height:2px; }
+.target-line { position:absolute; left:0; right:0; border-top:1.5px dashed rgba(34,197,94,0.4); z-index:1; }
+
+/* Legend */
+.legend { display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; }
+.legend-item { display:flex; align-items:center; gap:5px; }
+.legend-dot { width:10px; height:3px; border-radius:2px; }
+</style>
+</head>
+<body>
+<div id="app" class="loading">
+  <div class="logo">Project Rausyan Fuel</div>
+  <div style="color:rgba(255,255,255,0.4);font-size:13px;margin-top:8px">Loading data dari Google Sheets...</div>
+  <div class="spinner"></div>
+</div>
+
+<script>
+// ══════════════════════════════════
+// CONFIG
+// ══════════════════════════════════
+const SHEET_ID = "1MaFErYFxhdkQC0Tq6G7m8QSGA0pzfXZ2YcMvvAxOtCg";
+const GIDS = { meals:"0", targets:"668319368", weight:"1151167067", measurements:"1833908988" };
+const DEFAULT_TARGETS = { calories:2289, protein:172, fat:89, carbs:200 };
+
+// ══════════════════════════════════
+// STATE
+// ══════════════════════════════════
+let state = {
+  view: "daily",
+  mealData: [],
+  weightData: [],
+  measData: [],
+  targets: { ...DEFAULT_TARGETS },
+  selectedDate: null,
+  loading: true,
+  status: "loading",
+  lastRefresh: null,
+  activeMetric: null,
+  activeMetric2: null,
+};
+
+// ══════════════════════════════════
+// JSONP FETCH
+// ══════════════════════════════════
+let cbCount = 0;
+function fetchSheet(gid) {
+  return new Promise(resolve => {
+    const cb = `_gcb_${cbCount++}_${Date.now()}`;
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=responseHandler:${cb}&gid=${gid}&tq=${encodeURIComponent("SELECT *")}`;
+    const timer = setTimeout(() => { delete window[cb]; if(s.parentNode) s.parentNode.removeChild(s); resolve(null); }, 15000);
+
+    window[cb] = (resp) => {
+      clearTimeout(timer);
+      delete window[cb];
+      if(s.parentNode) s.parentNode.removeChild(s);
+      try {
+        if(resp && resp.table) {
+          const hdrs = resp.table.cols.map(c => c.label || c.id || "");
+          const rows = resp.table.rows.map(r => {
+            const obj = {};
+            (r.c || []).forEach((cell, i) => {
+              if(cell && cell.v !== null && cell.v !== undefined) {
+                obj[hdrs[i]] = cell.v;
+                if(cell.f) obj[hdrs[i]+"_f"] = cell.f;
+              } else {
+                obj[hdrs[i]] = "";
+              }
+            });
+            return obj;
+          });
+          resolve(rows);
+        } else resolve(null);
+      } catch(e) { resolve(null); }
+    };
+
+    const s = document.createElement("script");
+    s.src = url;
+    s.onerror = () => { clearTimeout(timer); delete window[cb]; resolve(null); };
+    document.body.appendChild(s);
+  });
+}
+
+// ══════════════════════════════════
+// HELPERS
+// ══════════════════════════════════
+function num(v) { if(typeof v==="number") return v; const n=parseFloat(v); return isNaN(n)?0:n; }
+
+function normalizeDate(d) {
+  if(!d) return "";
+  if(typeof d==="string" && /^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+  const s = String(d);
+  const m = s.match(/Date\((\d+),(\d+),(\d+)/);
+  if(m) return `${m[1]}-${String(Number(m[2])+1).padStart(2,"0")}-${m[3].padStart(2,"0")}`;
+  try { const p=new Date(d); if(!isNaN(p)) return `${p.getFullYear()}-${String(p.getMonth()+1).padStart(2,"0")}-${String(p.getDate()).padStart(2,"0")}`; } catch(e){}
+  return s;
+}
+
+function formatDate(s) {
+  if(!s) return "";
+  const d=new Date(s+"T00:00:00");
+  if(isNaN(d)) return s;
+  return d.toLocaleDateString("id-ID",{weekday:"short",day:"numeric",month:"short"});
+}
+
+function pct(v,t) { return t===0?0:Math.min(Math.round((v/t)*100),150); }
+
+function getDailySummary(data,date) {
+  const e=data.filter(d=>d.date===date);
+  return {date,entries:e,calories:e.reduce((s,x)=>s+x.calories,0),protein:e.reduce((s,x)=>s+x.protein,0),fat:e.reduce((s,x)=>s+x.fat,0),carbs:e.reduce((s,x)=>s+x.carbs,0)};
+}
+
+function uniqueDates(data) { return [...new Set(data.map(d=>d.date).filter(Boolean))].sort().reverse(); }
+
+// ══════════════════════════════════
+// DATA FETCH
+// ══════════════════════════════════
+async function fetchAllData() {
+  state.loading = true;
+  state.status = "loading";
+  render();
+
+  let ok = 0;
+
+  const tRows = await fetchSheet(GIDS.targets);
+  if(tRows && tRows.length) {
+    const t = {...DEFAULT_TARGETS};
+    tRows.forEach(r => {
+      const v = Object.values(r).filter(x => x !== "");
+      const key = String(v[0]||"").toLowerCase().trim();
+      const val = num(v[1]);
+      if(key==="calories") t.calories=val;
+      if(key==="protein") t.protein=val;
+      if(key==="fat") t.fat=val;
+      if(key==="carbs") t.carbs=val;
+    });
+    state.targets = t;
+    ok++;
+  }
+
+  const mRows = await fetchSheet(GIDS.meals);
+  if(mRows) {
+    state.mealData = mRows.map(r => {
+      const v = Object.values(r).filter((x,i) => !Object.keys(r)[i].endsWith("_f"));
+      return {date:normalizeDate(v[0]),time:String(v[1]||""),meal:String(v[2]||""),desc:String(v[3]||""),calories:num(v[4]),protein:num(v[5]),carbs:num(v[6]),fat:num(v[7])};
+    }).filter(m=>m.date&&m.calories>0);
+    ok++;
+  }
+
+  const wRows = await fetchSheet(GIDS.weight);
+  if(wRows) {
+    state.weightData = wRows.map(r => {
+      const v = Object.values(r).filter((x,i) => !Object.keys(r)[i].endsWith("_f"));
+      return {date:normalizeDate(v[0]),time:String(v[1]||""),weight:num(v[2]),stomach:String(v[3]||""),bodyFat:num(v[4]),visceralFat:num(v[5]),bodyAge:num(v[6])};
+    }).filter(w=>w.date&&w.weight>0);
+    ok++;
+  }
+
+  const msRows = await fetchSheet(GIDS.measurements);
+  if(msRows) {
+    state.measData = msRows.map(r => {
+      const v = Object.values(r).filter((x,i) => !Object.keys(r)[i].endsWith("_f"));
+      return {date:normalizeDate(v[0]),chest:num(v[1]),waist:num(v[2]),belly:num(v[3]),armL:num(v[4]),armR:num(v[5]),thighL:num(v[6]),thighR:num(v[7]),calf:num(v[8])};
+    }).filter(m=>m.date&&m.chest>0);
+    ok++;
+  }
+
+  const dates = uniqueDates(state.mealData);
+  if(dates.length && !state.selectedDate) state.selectedDate = dates[0];
+
+  state.status = ok > 0 ? "success" : "error";
+  state.lastRefresh = new Date();
+  state.loading = false;
+  render();
+}
+
+// ══════════════════════════════════
+// RENDER HELPERS
+// ══════════════════════════════════
+function renderRing(consumed, target) {
+  const size=170, r=(size-20)/2, circ=2*Math.PI*r;
+  const perc=Math.min(consumed/(target||1),1.5), offset=circ-perc*circ;
+  const p=Math.round((consumed/(target||1))*100);
+  const over=consumed>target;
+  const clr=over?"#ef4444":p>80?"#22c55e":p>50?"#eab308":"#f97316";
+  const remaining=target-consumed;
+  return `
+    <div style="position:relative;width:${size}px;height:${size}px;margin:0 auto">
+      <svg width="${size}" height="${size}" style="transform:rotate(-90deg)">
+        <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="10"/>
+        <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${clr}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${circ}" stroke-dashoffset="${offset}" style="transition:stroke-dashoffset 1s ease"/>
+      </svg>
+      <div class="ring-center">
+        <span class="ring-value">${consumed}</span>
+        <span class="ring-target">/ ${target} kkal</span>
+        <span class="ring-remaining" style="color:${over?'#ef4444':'#22c55e'}">${over?'+'+( consumed-target)+' over':remaining+' sisa'}</span>
+      </div>
+    </div>`;
+}
+
+function renderMacro(label, value, target, color) {
+  const p=pct(value,target), over=value>target;
+  return `<div class="macro">
+    <div class="macro-header"><span class="macro-label">${label}</span><span class="macro-value" style="color:${over?'#ef4444':'#f0f0f0'}">${value}<span class="macro-target">/${target}g</span></span></div>
+    <div class="macro-track"><div class="macro-fill" style="width:${Math.min(p,100)}%;background:${over?'#ef4444':color}"></div></div>
+    <div class="macro-pct">${p}%</div>
+  </div>`;
+}
+
+function renderMealTable(entries) {
+  const mc={Sarapan:"#f59e0b","Makan Siang":"#22c55e","Makan Malam":"#818cf8",Snack:"#ec4899"};
+  if(!entries.length) return '<div style="padding:20px;text-align:center;color:rgba(255,255,255,0.3);font-size:12px">Belum ada data</div>';
+  let html='<div class="table-scroll"><table class="meal-table"><thead><tr>';
+  ["Jam","Meal","Makanan","Kkal","P","C","F"].forEach(h=>{html+=`<th>${h}</th>`;});
+  html+='</tr></thead><tbody>';
+  entries.forEach(e=>{
+    const c=mc[e.meal]||"#666";
+    html+=`<tr>
+      <td style="color:rgba(255,255,255,0.5)">${e.time}</td>
+      <td><span class="meal-badge" style="background:${c}22;color:${c}">${e.meal}</span></td>
+      <td style="color:#f0f0f0;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.desc}</td>
+      <td style="font-weight:700;color:#f0f0f0">${e.calories}</td>
+      <td style="color:#22c55e">${e.protein}</td>
+      <td style="color:#eab308">${e.carbs}</td>
+      <td style="color:#f97316">${e.fat}</td>
+    </tr>`;
+  });
+  html+='</tbody></table></div>';
+  return html;
+}
+
+function renderBarChart(data, target, height) {
+  if(!data.length) return '';
+  const max=Math.max(...data.map(d=>d.calories),target*1.1);
+  const gap=Math.max(Math.floor(100/data.length*0.3),1);
+  let html=`<div class="bar-chart" style="height:${height}px;gap:${gap}px">`;
+  html+=`<div class="target-line" style="bottom:${(target/max)*100}%"><span style="position:absolute;right:0;top:-15px;font-size:8px;color:rgba(34,197,94,0.6)">target</span></div>`;
+  data.forEach(d=>{
+    const h=(d.calories/max)*100;
+    const bg=d.calories>target?"rgba(239,68,68,0.6)":"rgba(255,255,255,0.15)";
+    html+=`<div class="bar-item"><div class="bar" style="height:${h}%;background:${bg}" title="${formatDate(d.date)}: ${d.calories} kkal"></div></div>`;
+  });
+  html+='</div>';
+  return html;
+}
+
+function renderWeightChart(data, height) {
+  if(data.length<2) return '<div style="padding:16px;text-align:center;color:rgba(255,255,255,0.3);font-size:12px">Minimal 2 data</div>';
+  const w=data.map(d=>d.weight);
+  const min=Math.min(...w)-0.5,max=Math.max(...w)+0.5,range=max-min;
+  const pts=data.map((d,i)=>`${(i/(data.length-1))*100},${100-((d.weight-min)/range)*100}`).join(" ");
+  return `<div style="height:${height}px;position:relative">
+    <svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width:100%;height:100%">
+      <defs><linearGradient id="wg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#818cf8" stop-opacity="0.3"/><stop offset="100%" stop-color="#818cf8" stop-opacity="0"/></linearGradient></defs>
+      <polygon points="0,100 ${pts} 100,100" fill="url(#wg)"/>
+      <polyline points="${pts}" fill="none" stroke="#818cf8" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+    </svg>
+    <div style="position:absolute;top:4px;left:0;font-size:9px;color:rgba(255,255,255,0.3)">${max.toFixed(1)}kg</div>
+    <div style="position:absolute;bottom:4px;left:0;font-size:9px;color:rgba(255,255,255,0.3)">${min.toFixed(1)}kg</div>
+  </div>`;
+}
+
+function renderTrendChart(data, metrics, height, unitLabel, stateKey) {
+  const measured=data.filter(d=>d[metrics[0].key]>0);
+  if(measured.length<2) return '<div style="padding:16px;text-align:center;color:rgba(255,255,255,0.3);font-size:12px">Minimal 2 data</div>';
+  const active=state[stateKey];
+  const vis=active?metrics.filter(m=>m.key===active):metrics;
+  const allVals=vis.flatMap(m=>measured.map(d=>d[m.key]).filter(v=>v>0));
+  if(!allVals.length) return '';
+  const min=Math.min(...allVals)-1,max=Math.max(...allVals)+1,range=max-min;
+
+  let pills=`<div class="pill-row"><button class="pill" style="background:${!active?'rgba(129,140,248,0.2)':'rgba(255,255,255,0.06)'};color:${!active?'#818cf8':'rgba(255,255,255,0.4)'}" onclick="state.${stateKey}=null;render()">Semua</button>`;
+  metrics.forEach(m=>{pills+=`<button class="pill" style="background:${active===m.key?m.color+'33':'rgba(255,255,255,0.06)'};color:${active===m.key?m.color:'rgba(255,255,255,0.4)'}" onclick="state.${stateKey}=state.${stateKey}==='${m.key}'?null:'${m.key}';render()">${m.label}</button>`;});
+  pills+='</div>';
+
+  let svg=`<div style="position:relative;height:${height}px"><svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width:100%;height:100%">`;
+  [0,25,50,75,100].forEach(y=>{svg+=`<line x1="0" y1="${y}" x2="100" y2="${y}" stroke="rgba(255,255,255,0.04)" stroke-width="0.5" vector-effect="non-scaling-stroke"/>`;});
+  vis.forEach(m=>{
+    const pts=measured.map((d,i)=>`${(i/(measured.length-1))*100},${100-((d[m.key]-min)/range)*100}`).join(" ");
+    svg+=`<polyline points="${pts}" fill="none" stroke="${m.color}" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>`;
+    measured.forEach((d,i)=>{svg+=`<circle cx="${(i/(measured.length-1))*100}" cy="${100-((d[m.key]-min)/range)*100}" r="1.5" fill="${m.color}" stroke="#0a0a0f" stroke-width="1" vector-effect="non-scaling-stroke"/>`;});
+  });
+  svg+=`</svg><div style="position:absolute;top:2px;left:0;font-size:9px;color:rgba(255,255,255,0.25)">${max.toFixed(1)}</div><div style="position:absolute;bottom:2px;left:0;font-size:9px;color:rgba(255,255,255,0.25)">${min.toFixed(1)}</div></div>`;
+
+  let dates=`<div style="display:flex;justify-content:space-between;margin-top:6px"><span style="font-size:9px;color:rgba(255,255,255,0.25)">${formatDate(measured[0].date)}</span><span style="font-size:9px;color:rgba(255,255,255,0.25)">${formatDate(measured[measured.length-1].date)}</span></div>`;
+
+  let legend='<div class="legend">';
+  vis.forEach(m=>{
+    const delta=Math.round((measured[measured.length-1][m.key]-measured[0][m.key])*10)/10;
+    const clr=delta<0?"#22c55e":delta>0?"#ef4444":"rgba(255,255,255,0.4)";
+    legend+=`<div class="legend-item"><div class="legend-dot" style="background:${m.color}"></div><span style="font-size:9px;color:rgba(255,255,255,0.5)">${m.label}</span><span style="font-size:9px;font-weight:700;color:${clr}">${delta>0?'+':''}${delta}${unitLabel}</span></div>`;
+  });
+  legend+='</div>';
+
+  return pills+svg+dates+legend;
+}
+
+function renderMeasureCard(label, value, unit, icon) {
+  return `<div class="measure-card"><div class="measure-label">${icon?icon+' ':''}${label}</div><div class="measure-value">${value||'—'}<span class="measure-unit">${value?unit:''}</span></div></div>`;
+}
+
+// ══════════════════════════════════
+// MAIN RENDER
+// ══════════════════════════════════
+function render() {
+  const app = document.getElementById("app");
+  if(state.loading) {
+    app.className="loading";
+    app.innerHTML=`<div class="logo">Project Rausyan Fuel</div><div style="color:rgba(255,255,255,0.4);font-size:13px;margin-top:8px">Loading data dari Google Sheets...</div><div class="spinner"></div>`;
+    return;
+  }
+
+  app.className="app";
+  const T=state.targets;
+  const dates=uniqueDates(state.mealData);
+  const cd=state.selectedDate||dates[0]||"";
+  const daily=getDailySummary(state.mealData,cd);
+  const weekly=dates.slice(0,7).map(d=>getDailySummary(state.mealData,d)).reverse();
+  const monthly=dates.slice(0,30).map(d=>getDailySummary(state.mealData,d)).reverse();
+  const idx=dates.indexOf(cd);
+
+  const wl=weekly.length||1;
+  const wa={calories:Math.round(weekly.reduce((s,d)=>s+d.calories,0)/wl),protein:Math.round(weekly.reduce((s,d)=>s+d.protein,0)/wl),fat:Math.round(weekly.reduce((s,d)=>s+d.fat,0)/wl),carbs:Math.round(weekly.reduce((s,d)=>s+d.carbs,0)/wl),onTarget:weekly.filter(d=>Math.abs(d.calories-T.calories)<T.calories*0.1).length};
+
+  const lw=state.weightData.length?state.weightData[state.weightData.length-1]:null;
+  const wd=state.weightData.length>=2?Math.round((state.weightData[state.weightData.length-1].weight-state.weightData[0].weight)*10)/10:0;
+  const lm=state.measData.length?state.measData[state.measData.length-1]:null;
+
+  let html=`
+    <div class="header">
+      <div><div class="logo">Project Rausyan Fuel</div><p class="subtitle">v.1 — Kalori • Macro • Body Tracker</p></div>
+      <button class="refresh-btn" onclick="fetchAllData()">↻ Refresh</button>
+    </div>`;
+
+  if(state.status==="error") html+=`<div class="error-box">Gagal fetch data. Pastikan Google Sheet sudah di-publish dan sharing aktif.</div>`;
+  if(state.lastRefresh) html+=`<div class="status-bar">Update: ${state.lastRefresh.toLocaleTimeString("id-ID")} • ${state.mealData.length} meals • ${state.weightData.length} weights</div>`;
+
+  // Tabs
+  html+=`<div class="tabs">`;
+  [{k:"daily",l:"Harian"},{k:"weekly",l:"Mingguan"},{k:"monthly",l:"Bulanan"},{k:"body",l:"Body"}].forEach(t=>{
+    const cls=state.view===t.k?(t.k==="body"?"tab active-body":"tab active"):"tab";
+    html+=`<button class="${cls}" onclick="state.view='${t.k}';render()">${t.l}</button>`;
+  });
+  html+=`</div>`;
+
+  // ── DAILY ──
+  if(state.view==="daily") {
+    html+=`<div class="date-nav">
+      <button class="date-btn" onclick="navDate(1)">‹</button>
+      <span class="date-text">${formatDate(cd)}</span>
+      <button class="date-btn" onclick="navDate(-1)">›</button>
+    </div>`;
+    html+=`<div class="card" style="padding:26px 20px">${renderRing(daily.calories,T.calories)}<div style="text-align:center;margin-top:10px;font-size:11px;color:rgba(255,255,255,0.3)">${pct(daily.calories,T.calories)}% dari target harian</div></div>`;
+    html+=`<div class="card"><div class="section-label">Macronutrients</div>${renderMacro("Protein",daily.protein,T.protein,"#22c55e")}${renderMacro("Carbs",daily.carbs,T.carbs,"#eab308")}${renderMacro("Fat",daily.fat,T.fat,"#f97316")}</div>`;
+    html+=`<div class="card"><div class="section-label">Log Makanan</div>${renderMealTable(daily.entries)}</div>`;
+  }
+
+  // ── WEEKLY ──
+  if(state.view==="weekly") {
+    html+=`<div class="card"><div class="stats-row"><div class="stat"><div class="stat-label">Avg Kkal</div><div class="stat-value">${wa.calories}</div><div class="stat-sub">target: ${T.calories}</div></div><div class="stat"><div class="stat-label">On Target</div><div class="stat-value">${wa.onTarget}/${weekly.length}</div><div class="stat-sub">hari (±10%)</div></div><div class="stat"><div class="stat-label">Avg Protein</div><div class="stat-value">${wa.protein}g</div><div class="stat-sub">target: ${T.protein}g</div></div></div></div>`;
+    html+=`<div class="card"><div class="section-label">Kalori 7 Hari Terakhir</div>${renderBarChart(weekly,T.calories,130)}`;
+    if(weekly.length) { html+=`<div style="display:flex;justify-content:space-between;margin-top:6px">`; weekly.forEach(d=>{html+=`<span style="font-size:9px;color:rgba(255,255,255,0.25);flex:1;text-align:center">${new Date(d.date+"T00:00:00").toLocaleDateString("id-ID",{weekday:"short"})}</span>`;}); html+=`</div>`; }
+    html+=`</div>`;
+    html+=`<div class="card"><div class="section-label">Rata-rata Macro Mingguan</div>${renderMacro("Protein",wa.protein,T.protein,"#22c55e")}${renderMacro("Carbs",wa.carbs,T.carbs,"#eab308")}${renderMacro("Fat",wa.fat,T.fat,"#f97316")}</div>`;
+  }
+
+  // ── MONTHLY ──
+  if(state.view==="monthly") {
+    const ml=monthly.length||1;
+    const ma={cal:Math.round(monthly.reduce((s,d)=>s+d.calories,0)/ml),pro:Math.round(monthly.reduce((s,d)=>s+d.protein,0)/ml),carb:Math.round(monthly.reduce((s,d)=>s+d.carbs,0)/ml),fat:Math.round(monthly.reduce((s,d)=>s+d.fat,0)/ml),onTarget:monthly.filter(d=>Math.abs(d.calories-T.calories)<T.calories*0.1).length};
+    html+=`<div class="card"><div class="stats-row"><div class="stat"><div class="stat-label">Avg Kkal</div><div class="stat-value">${ma.cal}</div><div class="stat-sub">target: ${T.calories}</div></div><div class="stat"><div class="stat-label">On Target</div><div class="stat-value">${ma.onTarget}/${monthly.length}</div><div class="stat-sub">hari (±10%)</div></div><div class="stat"><div class="stat-label">Avg Protein</div><div class="stat-value">${ma.pro}g</div><div class="stat-sub">target: ${T.protein}g</div></div></div></div>`;
+    html+=`<div class="card"><div class="section-label">Kalori 30 Hari Terakhir</div>${renderBarChart(monthly,T.calories,150)}</div>`;
+    html+=`<div class="card"><div class="section-label">Rata-rata Macro Bulanan</div>${renderMacro("Protein",ma.pro,T.protein,"#22c55e")}${renderMacro("Carbs",ma.carb,T.carbs,"#eab308")}${renderMacro("Fat",ma.fat,T.fat,"#f97316")}</div>`;
+  }
+
+  // ── BODY ──
+  if(state.view==="body") {
+    if(lw) {
+      html+=`<div class="card" style="padding:24px 20px"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div class="section-label">Berat Badan Terakhir</div><div style="font-size:40px;font-weight:800;line-height:1">${lw.weight}<span style="font-size:16px;font-weight:400;color:rgba(255,255,255,0.35);margin-left:4px">kg</span></div><div style="margin-top:8px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="font-size:11px;font-weight:600;color:${wd<0?'#22c55e':wd>0?'#ef4444':'rgba(255,255,255,0.4)'}">${wd>0?'+':''}${wd} kg</span>${lw.stomach?`<span style="font-size:9px;padding:2px 7px;border-radius:4px;font-weight:600;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.4)">${lw.stomach}</span>`:''}</div></div><div style="text-align:right"><div style="font-size:9px;color:rgba(255,255,255,0.3)">${formatDate(lw.date)}</div><div style="font-size:14px;font-weight:600;color:rgba(255,255,255,0.6);margin-top:2px">${lw.time}</div></div></div></div>`;
+    }
+    if(state.weightData.length) {
+      html+=`<div class="card"><div class="section-label">Tren Berat Badan</div>${renderWeightChart(state.weightData,130)}<div style="display:flex;justify-content:space-between;margin-top:6px"><span style="font-size:9px;color:rgba(255,255,255,0.25)">${formatDate(state.weightData[0].date)}</span><span style="font-size:9px;color:rgba(255,255,255,0.25)">${formatDate(state.weightData[state.weightData.length-1].date)}</span></div></div>`;
+    }
+    if(lw&&(lw.bodyFat>0||lw.visceralFat>0)) {
+      html+=`<div class="card"><div class="section-label">Komposisi Tubuh</div><div class="measure-grid">${renderMeasureCard("Body Fat",lw.bodyFat||null,"%","🔥")}${renderMeasureCard("Visceral Fat",lw.visceralFat||null,"","🫀")}${renderMeasureCard("Body Age",lw.bodyAge||null,"thn","⏳")}</div></div>`;
+    }
+    if(lm) {
+      html+=`<div class="card"><div class="section-label">Pengukuran Terakhir — ${formatDate(lm.date)}</div><div class="measure-grid">${renderMeasureCard("Dada",lm.chest||null,"cm","📐")}${renderMeasureCard("Pinggang",lm.waist||null,"cm","📏")}${renderMeasureCard("Perut",lm.belly||null,"cm","📏")}</div><div class="measure-grid">${renderMeasureCard("Lengan L",lm.armL||null,"cm","💪")}${renderMeasureCard("Lengan R",lm.armR||null,"cm","💪")}</div><div class="measure-grid">${renderMeasureCard("Paha L",lm.thighL||null,"cm","🦵")}${renderMeasureCard("Paha R",lm.thighR||null,"cm","🦵")}${renderMeasureCard("Betis",lm.calf||null,"cm","🦵")}</div></div>`;
+    }
+    if(state.measData.length>=2) {
+      html+=`<div class="card"><div class="section-label">Tren Lingkar Tubuh</div>${renderTrendChart(state.measData,[{key:"chest",label:"Dada",color:"#818cf8"},{key:"waist",label:"Pinggang",color:"#f97316"},{key:"belly",label:"Perut",color:"#ef4444"},{key:"armL",label:"Arm L",color:"#22c55e"},{key:"armR",label:"Arm R",color:"#10b981"},{key:"thighL",label:"Paha L",color:"#eab308"},{key:"thighR",label:"Paha R",color:"#f59e0b"},{key:"calf",label:"Betis",color:"#ec4899"}],160," cm","activeMetric")}</div>`;
+    }
+    if(state.weightData.filter(w=>w.bodyFat>0).length>=2) {
+      html+=`<div class="card"><div class="section-label">Tren Komposisi Tubuh</div>${renderTrendChart(state.weightData.filter(w=>w.bodyFat>0),[{key:"bodyFat",label:"Body Fat %",color:"#f97316"},{key:"visceralFat",label:"Visceral Fat",color:"#ef4444"},{key:"bodyAge",label:"Body Age",color:"#818cf8"}],160,"","activeMetric2")}</div>`;
+    }
+    if(!lw&&!lm) html+=`<div class="card" style="text-align:center;color:rgba(255,255,255,0.3);font-size:13px;padding:40px">Belum ada data body.</div>`;
+  }
+
+  html+=`<div class="footer">Project Rausyan Fuel v.1 • Live dari Google Sheets</div>`;
+  app.innerHTML = html;
+}
+
+function navDate(dir) {
+  const dates=uniqueDates(state.mealData);
+  const idx=dates.indexOf(state.selectedDate);
+  const newIdx=idx+dir;
+  if(newIdx>=0 && newIdx<dates.length) { state.selectedDate=dates[newIdx]; render(); }
+}
+
+// Start
+fetchAllData();
+</script>
+</body>
+</html>
