@@ -12,6 +12,37 @@
 body { background:#0a0a0f; color:#f0f0f0; font-family:'DM Sans',-apple-system,sans-serif; min-height:100vh; }
 .app { max-width:500px; margin:0 auto; padding:20px 16px; }
 
+/* Desktop responsive */
+@media (min-width: 768px) {
+  .app { max-width:900px; padding:32px 40px; }
+  .logo { font-size:24px; }
+  .subtitle { font-size:12px; }
+  .card { padding:28px; }
+  .section-label { font-size:12px; }
+  .tabs .tab { font-size:13px; padding:10px 0; }
+  .date-text { font-size:15px; }
+  .ring-value { font-size:38px !important; }
+  .macro-label { font-size:13px; }
+  .macro-value { font-size:15px; }
+  .macro-track { height:10px; }
+  .meal-table { font-size:14px; }
+  .meal-table th { font-size:11px; }
+  .stat-value { font-size:28px; }
+  .stat-label { font-size:12px; }
+  .stat-sub { font-size:11px; }
+  .measure-card { padding:16px 20px; }
+  .measure-value { font-size:24px; }
+  .measure-label { font-size:10px; }
+  .status-bar { font-size:11px; }
+  .refresh-btn { font-size:12px; padding:8px 16px; }
+  .footer { font-size:11px; }
+  .desktop-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .desktop-grid .card { margin-bottom:0; }
+}
+@media (min-width: 1200px) {
+  .app { max-width:1100px; padding:40px 60px; }
+}
+
 /* Header */
 .header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:22px; }
 .logo { font-size:18px; font-weight:800; background:linear-gradient(135deg,#818cf8,#22c55e); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
@@ -185,9 +216,31 @@ function normalizeDate(d) {
   if(typeof d==="string" && /^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
   const s = String(d);
   const m = s.match(/Date\((\d+),(\d+),(\d+)/);
-  if(m) return `${m[1]}-${String(Number(m[2])+1).padStart(2,"0")}-${m[3].padStart(2,"0")}`;
-  try { const p=new Date(d); if(!isNaN(p)) return `${p.getFullYear()}-${String(p.getMonth()+1).padStart(2,"0")}-${String(p.getDate()).padStart(2,"0")}`; } catch(e){}
+  if(m) {
+    // Skip dates with year 1899 (these are time-only values from Google Sheets)
+    if(Number(m[1]) < 1900) return "";
+    return `${m[1]}-${String(Number(m[2])+1).padStart(2,"0")}-${m[3].padStart(2,"0")}`;
+  }
+  try { const p=new Date(d); if(!isNaN(p) && p.getFullYear()>1900) return `${p.getFullYear()}-${String(p.getMonth()+1).padStart(2,"0")}-${String(p.getDate()).padStart(2,"0")}`; } catch(e){}
   return s;
+}
+
+function normalizeTime(t) {
+  if(!t) return "";
+  const s = String(t);
+  // Handle Date(1899,11,30,8,36,0) format (time-only from Google Viz)
+  const m = s.match(/Date\(\d+,\d+,\d+,(\d+),(\d+)/);
+  if(m) return `${String(m[1]).padStart(2,"0")}:${String(m[2]).padStart(2,"0")}`;
+  // Already a time string
+  if(/^\d{1,2}:\d{2}/.test(s)) return s;
+  return s;
+}
+
+function fixBodyFat(v) {
+  // If user inputs 0.22 meaning 22%, convert
+  const n = num(v);
+  if(n > 0 && n < 1) return Math.round(n * 1000) / 10; // 0.223 → 22.3
+  return n;
 }
 
 function formatDate(s) {
@@ -236,7 +289,7 @@ async function fetchAllData() {
   if(mRows) {
     state.mealData = mRows.map(r => {
       const v = Object.values(r).filter((x,i) => !Object.keys(r)[i].endsWith("_f"));
-      return {date:normalizeDate(v[0]),time:String(v[1]||""),meal:String(v[2]||""),desc:String(v[3]||""),calories:num(v[4]),protein:num(v[5]),carbs:num(v[6]),fat:num(v[7])};
+      return {date:normalizeDate(v[0]),time:normalizeTime(v[1]),meal:String(v[2]||""),desc:String(v[3]||""),calories:num(v[4]),protein:num(v[5]),carbs:num(v[6]),fat:num(v[7])};
     }).filter(m=>m.date&&m.calories>0);
     ok++;
   }
@@ -245,7 +298,7 @@ async function fetchAllData() {
   if(wRows) {
     state.weightData = wRows.map(r => {
       const v = Object.values(r).filter((x,i) => !Object.keys(r)[i].endsWith("_f"));
-      return {date:normalizeDate(v[0]),time:String(v[1]||""),weight:num(v[2]),stomach:String(v[3]||""),bodyFat:num(v[4]),visceralFat:num(v[5]),bodyAge:num(v[6])};
+      return {date:normalizeDate(v[0]),time:normalizeTime(v[1]),weight:num(v[2]),stomach:String(v[3]||""),bodyFat:fixBodyFat(v[4]),visceralFat:num(v[5]),bodyAge:num(v[6])};
     }).filter(w=>w.date&&w.weight>0);
     ok++;
   }
@@ -343,15 +396,28 @@ function renderWeightChart(data, height) {
   const w=data.map(d=>d.weight);
   const min=Math.min(...w)-0.5,max=Math.max(...w)+0.5,range=max-min;
   const pts=data.map((d,i)=>`${(i/(data.length-1))*100},${100-((d.weight-min)/range)*100}`).join(" ");
+  let dots='';
+  data.forEach((d,i)=>{
+    const x=(i/(data.length-1))*100;
+    const y=100-((d.weight-min)/range)*100;
+    dots+=`<circle cx="${x}" cy="${y}" r="2.5" fill="#818cf8" stroke="#0a0a0f" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`;
+  });
+  // Labels below chart
+  let labels='<div style="display:flex;justify-content:space-between;margin-top:8px;flex-wrap:nowrap">';
+  data.forEach((d,i)=>{
+    labels+=`<div style="text-align:center;flex:1;min-width:0"><div style="font-size:11px;font-weight:700;color:#818cf8">${d.weight}</div><div style="font-size:8px;color:rgba(255,255,255,0.25);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${formatDate(d.date)}</div></div>`;
+  });
+  labels+='</div>';
   return `<div style="height:${height}px;position:relative">
     <svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width:100%;height:100%">
-      <defs><linearGradient id="wg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#818cf8" stop-opacity="0.3"/><stop offset="100%" stop-color="#818cf8" stop-opacity="0"/></linearGradient></defs>
+      <defs><linearGradient id="wg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#818cf8" stop-opacity="0.15"/><stop offset="100%" stop-color="#818cf8" stop-opacity="0"/></linearGradient></defs>
       <polygon points="0,100 ${pts} 100,100" fill="url(#wg)"/>
-      <polyline points="${pts}" fill="none" stroke="#818cf8" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+      <polyline points="${pts}" fill="none" stroke="#818cf8" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
+      ${dots}
     </svg>
     <div style="position:absolute;top:4px;left:0;font-size:9px;color:rgba(255,255,255,0.3)">${max.toFixed(1)}kg</div>
     <div style="position:absolute;bottom:4px;left:0;font-size:9px;color:rgba(255,255,255,0.3)">${min.toFixed(1)}kg</div>
-  </div>`;
+  </div>${labels}`;
 }
 
 function renderTrendChart(data, metrics, height, unitLabel, stateKey) {
@@ -367,14 +433,14 @@ function renderTrendChart(data, metrics, height, unitLabel, stateKey) {
   metrics.forEach(m=>{pills+=`<button class="pill" style="background:${active===m.key?m.color+'33':'rgba(255,255,255,0.06)'};color:${active===m.key?m.color:'rgba(255,255,255,0.4)'}" onclick="state.${stateKey}=state.${stateKey}==='${m.key}'?null:'${m.key}';render()">${m.label}</button>`;});
   pills+='</div>';
 
-  let svg=`<div style="position:relative;height:${height}px"><svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width:100%;height:100%">`;
+  let svg=`<div style="position:relative;height:${height}px;padding-left:35px"><div style="position:absolute;top:2px;left:0;font-size:9px;color:rgba(255,255,255,0.35);font-weight:600">${max.toFixed(1)}</div><div style="position:absolute;bottom:2px;left:0;font-size:9px;color:rgba(255,255,255,0.35);font-weight:600">${min.toFixed(1)}</div><svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width:100%;height:100%">`;
   [0,25,50,75,100].forEach(y=>{svg+=`<line x1="0" y1="${y}" x2="100" y2="${y}" stroke="rgba(255,255,255,0.04)" stroke-width="0.5" vector-effect="non-scaling-stroke"/>`;});
   vis.forEach(m=>{
     const pts=measured.map((d,i)=>`${(i/(measured.length-1))*100},${100-((d[m.key]-min)/range)*100}`).join(" ");
     svg+=`<polyline points="${pts}" fill="none" stroke="${m.color}" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>`;
-    measured.forEach((d,i)=>{svg+=`<circle cx="${(i/(measured.length-1))*100}" cy="${100-((d[m.key]-min)/range)*100}" r="1.5" fill="${m.color}" stroke="#0a0a0f" stroke-width="1" vector-effect="non-scaling-stroke"/>`;});
+    measured.forEach((d,i)=>{svg+=`<circle cx="${(i/(measured.length-1))*100}" cy="${100-((d[m.key]-min)/range)*100}" r="2" fill="${m.color}" stroke="#0a0a0f" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`;});
   });
-  svg+=`</svg><div style="position:absolute;top:2px;left:0;font-size:9px;color:rgba(255,255,255,0.25)">${max.toFixed(1)}</div><div style="position:absolute;bottom:2px;left:0;font-size:9px;color:rgba(255,255,255,0.25)">${min.toFixed(1)}</div></div>`;
+  svg+=`</svg></div>`;
 
   let dates=`<div style="display:flex;justify-content:space-between;margin-top:6px"><span style="font-size:9px;color:rgba(255,255,255,0.25)">${formatDate(measured[0].date)}</span><span style="font-size:9px;color:rgba(255,255,255,0.25)">${formatDate(measured[measured.length-1].date)}</span></div>`;
 
@@ -444,18 +510,22 @@ function render() {
       <span class="date-text">${formatDate(cd)}</span>
       <button class="date-btn" onclick="navDate(-1)">›</button>
     </div>`;
+    html+=`<div class="desktop-grid">`;
     html+=`<div class="card" style="padding:26px 20px">${renderRing(daily.calories,T.calories)}<div style="text-align:center;margin-top:10px;font-size:11px;color:rgba(255,255,255,0.3)">${pct(daily.calories,T.calories)}% dari target harian</div></div>`;
     html+=`<div class="card"><div class="section-label">Macronutrients</div>${renderMacro("Protein",daily.protein,T.protein,"#22c55e")}${renderMacro("Carbs",daily.carbs,T.carbs,"#eab308")}${renderMacro("Fat",daily.fat,T.fat,"#f97316")}</div>`;
+    html+=`</div>`;
     html+=`<div class="card"><div class="section-label">Log Makanan</div>${renderMealTable(daily.entries)}</div>`;
   }
 
   // ── WEEKLY ──
   if(state.view==="weekly") {
     html+=`<div class="card"><div class="stats-row"><div class="stat"><div class="stat-label">Avg Kkal</div><div class="stat-value">${wa.calories}</div><div class="stat-sub">target: ${T.calories}</div></div><div class="stat"><div class="stat-label">On Target</div><div class="stat-value">${wa.onTarget}/${weekly.length}</div><div class="stat-sub">hari (±10%)</div></div><div class="stat"><div class="stat-label">Avg Protein</div><div class="stat-value">${wa.protein}g</div><div class="stat-sub">target: ${T.protein}g</div></div></div></div>`;
+    html+=`<div class="desktop-grid">`;
     html+=`<div class="card"><div class="section-label">Kalori 7 Hari Terakhir</div>${renderBarChart(weekly,T.calories,130)}`;
     if(weekly.length) { html+=`<div style="display:flex;justify-content:space-between;margin-top:6px">`; weekly.forEach(d=>{html+=`<span style="font-size:9px;color:rgba(255,255,255,0.25);flex:1;text-align:center">${new Date(d.date+"T00:00:00").toLocaleDateString("id-ID",{weekday:"short"})}</span>`;}); html+=`</div>`; }
     html+=`</div>`;
     html+=`<div class="card"><div class="section-label">Rata-rata Macro Mingguan</div>${renderMacro("Protein",wa.protein,T.protein,"#22c55e")}${renderMacro("Carbs",wa.carbs,T.carbs,"#eab308")}${renderMacro("Fat",wa.fat,T.fat,"#f97316")}</div>`;
+    html+=`</div>`;
   }
 
   // ── MONTHLY ──
@@ -473,7 +543,7 @@ function render() {
       html+=`<div class="card" style="padding:24px 20px"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div class="section-label">Berat Badan Terakhir</div><div style="font-size:40px;font-weight:800;line-height:1">${lw.weight}<span style="font-size:16px;font-weight:400;color:rgba(255,255,255,0.35);margin-left:4px">kg</span></div><div style="margin-top:8px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="font-size:11px;font-weight:600;color:${wd<0?'#22c55e':wd>0?'#ef4444':'rgba(255,255,255,0.4)'}">${wd>0?'+':''}${wd} kg</span>${lw.stomach?`<span style="font-size:9px;padding:2px 7px;border-radius:4px;font-weight:600;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.4)">${lw.stomach}</span>`:''}</div></div><div style="text-align:right"><div style="font-size:9px;color:rgba(255,255,255,0.3)">${formatDate(lw.date)}</div><div style="font-size:14px;font-weight:600;color:rgba(255,255,255,0.6);margin-top:2px">${lw.time}</div></div></div></div>`;
     }
     if(state.weightData.length) {
-      html+=`<div class="card"><div class="section-label">Tren Berat Badan</div>${renderWeightChart(state.weightData,130)}<div style="display:flex;justify-content:space-between;margin-top:6px"><span style="font-size:9px;color:rgba(255,255,255,0.25)">${formatDate(state.weightData[0].date)}</span><span style="font-size:9px;color:rgba(255,255,255,0.25)">${formatDate(state.weightData[state.weightData.length-1].date)}</span></div></div>`;
+      html+=`<div class="card"><div class="section-label">Tren Berat Badan</div>${renderWeightChart(state.weightData,130)}</div>`;
     }
     if(lw&&(lw.bodyFat>0||lw.visceralFat>0)) {
       html+=`<div class="card"><div class="section-label">Komposisi Tubuh</div><div class="measure-grid">${renderMeasureCard("Body Fat",lw.bodyFat||null,"%","🔥")}${renderMeasureCard("Visceral Fat",lw.visceralFat||null,"","🫀")}${renderMeasureCard("Body Age",lw.bodyAge||null,"thn","⏳")}</div></div>`;
