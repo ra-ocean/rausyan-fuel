@@ -23,25 +23,66 @@ body{background:#FFFFF0;color:#2D1B14;font-family:'Poppins',sans-serif;min-heigh
 <div id="root"></div>
 <script type="text/babel">
 const {useState,useMemo,useEffect,useCallback} = React;
+
+// ═══ CONFIG ═══
 const SHEET_ID="1MaFErYFxhdkQC0Tq6G7m8QSGA0pzfXZ2YcMvvAxOtCg";
 const GIDS={meals:"0",targets:"668319368",weight:"1151167067",measurements:"1833908988"};
 const DEFAULTS={calories:2289,protein:172,fat:89,carbs:200};
-const C={crimson:"#B22222",crimsonLight:"#D4443E",crimsonDark:"#8B1A1A",ivory:"#FFFFF0",ivoryDark:"#F5F0E0",cardBg:"#FDFDF5",text:"#2D1B14",textMuted:"#8B7D75",textLight:"#B5A89E",coral:"#E8634A",orange:"#D4763A",amber:"#C4922A",teal:"#2A8B7D",green:"#3D8B37",purple:"#7B4BAA",border:"rgba(178,34,34,0.1)",cardBorder:"rgba(178,34,34,0.08)"};
+const C={crimson:"#B22222",crimsonLight:"#D4443E",ivory:"#FFFFF0",ivoryDark:"#F5F0E0",cardBg:"#FDFDF5",text:"#2D1B14",textMuted:"#8B7D75",textLight:"#B5A89E",coral:"#E8634A",orange:"#D4763A",amber:"#C4922A",teal:"#2A8B7D",green:"#3D8B37",purple:"#7B4BAA",border:"rgba(178,34,34,0.1)",cardBorder:"rgba(178,34,34,0.08)"};
 
+// ═══ JSONP ═══
 let cbc=0;
 function fetchSheet(gid){return new Promise(res=>{const cb=`_g${cbc++}_${Date.now()}`;const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=responseHandler:${cb}&gid=${gid}&tq=${encodeURIComponent("SELECT *")}`;const timer=setTimeout(()=>{delete window[cb];if(s.parentNode)s.parentNode.removeChild(s);res(null)},15000);window[cb]=(r)=>{clearTimeout(timer);delete window[cb];if(s.parentNode)s.parentNode.removeChild(s);try{if(r&&r.table){const h=r.table.cols.map(c=>c.label||c.id||"");res(r.table.rows.map(row=>{const o={};(row.c||[]).forEach((cell,i)=>{if(cell&&cell.v!==null&&cell.v!==undefined){o[h[i]]=cell.v;if(cell.f)o[h[i]+"_f"]=cell.f}else o[h[i]]=""});return o}))}else res(null)}catch(e){res(null)}};const s=document.createElement("script");s.src=url;s.onerror=()=>{clearTimeout(timer);delete window[cb];res(null)};document.body.appendChild(s)})}
 
+// ═══ HELPERS ═══
 const num=v=>{if(typeof v==="number")return v;const n=parseFloat(v);return isNaN(n)?0:n};
-function normalizeDate(d){if(!d)return"";if(typeof d==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(d))return d;const s=String(d),m=s.match(/Date\((\d+),(\d+),(\d+)/);if(m){if(Number(m[1])<1900)return"";return`${m[1]}-${String(Number(m[2])+1).padStart(2,"0")}-${m[3].padStart(2,"0")}`}try{const p=new Date(d);if(!isNaN(p)&&p.getFullYear()>1900)return`${p.getFullYear()}-${String(p.getMonth()+1).padStart(2,"0")}-${String(p.getDate()).padStart(2,"0")}`}catch(e){}return s}
-function normalizeTime(t){if(!t)return"";const s=String(t);const m=s.match(/Date\(\d+,\d+,\d+,(\d+),(\d+)/);if(m)return`${String(m[1]).padStart(2,"0")}:${String(m[2]).padStart(2,"0")}`;if(/^\d{1,2}:\d{2}/.test(s))return s;return s}
+function nDate(d){if(!d)return"";if(typeof d==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(d))return d;const s=String(d),m=s.match(/Date\((\d+),(\d+),(\d+)/);if(m){if(Number(m[1])<1900)return"";return`${m[1]}-${String(Number(m[2])+1).padStart(2,"0")}-${m[3].padStart(2,"0")}`}try{const p=new Date(d);if(!isNaN(p)&&p.getFullYear()>1900)return`${p.getFullYear()}-${String(p.getMonth()+1).padStart(2,"0")}-${String(p.getDate()).padStart(2,"0")}`}catch(e){}return s}
+function nTime(t){if(!t)return"";const s=String(t);const m=s.match(/Date\(\d+,\d+,\d+,(\d+),(\d+)/);if(m)return`${String(m[1]).padStart(2,"0")}:${String(m[2]).padStart(2,"0")}`;if(/^\d{1,2}:\d{2}/.test(s))return s;return s}
 function fixBF(v){const n=num(v);return(n>0&&n<1)?Math.round(n*1000)/10:n}
-function fmtDate(s){if(!s)return"";const d=new Date(s+"T00:00:00");return isNaN(d)?s:d.toLocaleDateString("id-ID",{weekday:"short",day:"numeric",month:"short"})}
+function fD(s){if(!s)return"";const d=new Date(s+"T00:00:00");return isNaN(d)?s:d.toLocaleDateString("id-ID",{weekday:"short",day:"numeric",month:"short"})}
+function fDShort(s){if(!s)return"";const d=new Date(s+"T00:00:00");return isNaN(d)?s:d.toLocaleDateString("id-ID",{day:"numeric",month:"short"})}
 function pct(v,t){return t===0?0:Math.min(Math.round((v/t)*100),150)}
-function getDailySum(data,date){const e=data.filter(d=>d.date===date);return{date,entries:e,calories:e.reduce((s,x)=>s+x.calories,0),protein:e.reduce((s,x)=>s+x.protein,0),fat:e.reduce((s,x)=>s+x.fat,0),carbs:e.reduce((s,x)=>s+x.carbs,0)}}
-function uniqDates(data){return[...new Set(data.map(d=>d.date).filter(Boolean))].sort().reverse()}
+function getDSum(data,date){const e=data.filter(d=>d.date===date);return{date,entries:e,calories:e.reduce((s,x)=>s+x.calories,0),protein:e.reduce((s,x)=>s+x.protein,0),fat:e.reduce((s,x)=>s+x.fat,0),carbs:e.reduce((s,x)=>s+x.carbs,0)}}
+function uDates(data){return[...new Set(data.map(d=>d.date).filter(Boolean))].sort().reverse()}
+
+// Get target for a specific date from target log
+function getTargetForDate(targetLog, date) {
+  if(!targetLog.length) return DEFAULTS;
+  // Sort by date ascending
+  const sorted = [...targetLog].sort((a,b) => a.date.localeCompare(b.date));
+  // Find latest target that is <= date
+  let result = sorted[0]; // default to earliest
+  for(const t of sorted) {
+    if(t.date <= date) result = t;
+    else break;
+  }
+  return result;
+}
+
+// Get date range for week/month navigation
+function getWeekRange(allDates, weekOffset) {
+  const today = allDates[0] || new Date().toISOString().split("T")[0];
+  const d = new Date(today + "T00:00:00");
+  d.setDate(d.getDate() - weekOffset * 7);
+  const end = d.toISOString().split("T")[0];
+  d.setDate(d.getDate() - 6);
+  const start = d.toISOString().split("T")[0];
+  return {start, end};
+}
+
+function getMonthRange(yearMonth) {
+  // yearMonth = "2026-03"
+  const [y,m] = yearMonth.split("-").map(Number);
+  const start = `${y}-${String(m).padStart(2,"0")}-01`;
+  const lastDay = new Date(y, m, 0).getDate();
+  const end = `${y}-${String(m).padStart(2,"0")}-${String(lastDay).padStart(2,"0")}`;
+  return {start, end};
+}
 
 const sCard={background:C.cardBg,borderRadius:16,padding:20,marginBottom:14,border:`1px solid ${C.cardBorder}`,boxShadow:"0 2px 12px rgba(178,34,34,0.04)"};
 const sLabel={fontSize:11,textTransform:"uppercase",letterSpacing:"1.5px",color:C.textMuted,marginBottom:14,fontWeight:600};
+
+// ═══ COMPONENTS ═══
 
 function Ring({consumed,target}){const sz=170,r=(sz-20)/2,circ=2*Math.PI*r,perc=Math.min(consumed/(target||1),1.5),off=circ-perc*circ,p=Math.round((consumed/(target||1))*100),over=consumed>target,rem=target-consumed,clr=over?C.coral:p>80?C.green:p>50?C.amber:C.orange;return(<div style={{position:"relative",width:sz,height:sz,margin:"0 auto"}}><svg width={sz} height={sz} style={{transform:"rotate(-90deg)"}}><circle cx={sz/2} cy={sz/2} r={r} fill="none" stroke={C.border} strokeWidth="10"/><circle cx={sz/2} cy={sz/2} r={r} fill="none" stroke={clr} strokeWidth="10" strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={off} style={{transition:"stroke-dashoffset 1s ease"}}/></svg><div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:32,fontWeight:800,color:C.text,fontFamily:"'Crimson Pro',serif"}}>{consumed}</span><span style={{fontSize:10,color:C.textMuted,textTransform:"uppercase",letterSpacing:"1.5px"}}>/ {target} kkal</span><span style={{fontSize:11,color:over?C.coral:C.green,fontWeight:600,marginTop:5}}>{over?`+${consumed-target} over`:`${rem} sisa`}</span></div></div>)}
 
@@ -51,56 +92,183 @@ function MealLog({entries}){const mc={Sarapan:C.amber,"Makan Siang":C.green,"Mak
 
 function Stat({label,value,sub}){return(<div style={{textAlign:"center"}}><div style={{fontSize:10,color:C.textMuted,textTransform:"uppercase",letterSpacing:"1px",marginBottom:3,fontWeight:600}}>{label}</div><div style={{fontSize:24,fontWeight:800,color:C.text,fontFamily:"'Crimson Pro',serif"}}>{value}</div>{sub&&<div style={{fontSize:10,color:C.textLight,marginTop:1}}>{sub}</div>}</div>)}
 
-function WeightChart({data}){if(data.length<2)return<div style={{padding:16,textAlign:"center",color:C.textLight}}>Minimal 2 data</div>;const w=data.map(d=>d.weight),mn=Math.min(...w)-0.3,mx=Math.max(...w)+0.3,rng=mx-mn;const svgW=Math.max(data.length*80,300),svgH=180,pad={top:28,bottom:45,left:10,right:10},cW=svgW-pad.left-pad.right,cH=svgH-pad.top-pad.bottom;const pts=data.map((d,i)=>({x:pad.left+(i/(data.length-1))*cW,y:pad.top+(1-(d.weight-mn)/rng)*cH,w:d.weight,dt:d.date}));const line=pts.map(p=>`${p.x},${p.y}`).join(" ");return(<div style={{overflowX:"auto"}}><svg width={svgW} height={svgH}><defs><linearGradient id="wg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.crimson} stopOpacity="0.12"/><stop offset="100%" stopColor={C.crimson} stopOpacity="0"/></linearGradient></defs><polygon points={`${pad.left},${svgH-pad.bottom} ${line} ${svgW-pad.right},${svgH-pad.bottom}`} fill="url(#wg)"/><polyline points={line} fill="none" stroke={C.crimson} strokeWidth="2.5" strokeLinejoin="round"/>{pts.map((p,i)=><g key={i}><circle cx={p.x} cy={p.y} r="5" fill={C.crimson} stroke={C.cardBg} strokeWidth="2.5"/><text x={p.x} y={p.y-12} textAnchor="middle" fill={C.crimson} fontSize="11" fontWeight="700" fontFamily="Poppins">{p.w}</text><text x={p.x} y={svgH-pad.bottom+16} textAnchor="middle" fill={C.textMuted} fontSize="9" fontFamily="Poppins">{fmtDate(p.dt)}</text></g>)}</svg></div>)}
+// Bar chart with visible bars and calorie labels
+function BarChart({data,targetLog,height=140}){
+  if(!data.length)return null;
+  const allCals = data.map(d=>d.calories);
+  const allTargets = data.map(d=>{const t=getTargetForDate(targetLog,d.date);return t.calories});
+  const mx=Math.max(...allCals,...allTargets)*1.15;
+  return(
+    <div style={{position:"relative",height}}>
+      <div style={{display:"flex",alignItems:"flex-end",height:"100%",gap:3,padding:"0 2px"}}>
+        {data.map((d,i)=>{
+          const h=(d.calories/mx)*100;
+          const target=allTargets[i];
+          const over=d.calories>target;
+          return(
+            <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",height:"100%",justifyContent:"flex-end",position:"relative"}}>
+              <div style={{fontSize:9,fontWeight:700,color:over?C.coral:C.text,marginBottom:2,whiteSpace:"nowrap"}}>{d.calories>0?d.calories:""}</div>
+              <div style={{width:"100%",height:`${h}%`,minHeight:d.calories>0?4:0,background:over?C.coral:C.crimson+"BB",borderRadius:"4px 4px 0 0",transition:"height 0.5s"}}/>
+              {/* Target marker */}
+              <div style={{position:"absolute",left:0,right:0,bottom:`${(target/mx)*100}%`,borderTop:`2px dashed ${C.green}`,opacity:0.5}}/>
+              <div style={{fontSize:8,color:C.textLight,marginTop:3,whiteSpace:"nowrap"}}>{fDShort(d.date)}</div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
-function BarChart({data,target,height=130}){if(!data.length)return null;const mx=Math.max(...data.map(d=>d.calories),target*1.1);return(<div style={{position:"relative",height,display:"flex",alignItems:"flex-end",gap:2,padding:"0 4px"}}><div style={{position:"absolute",left:0,right:0,bottom:`${(target/mx)*100}%`,borderTop:`1.5px dashed ${C.green}`,zIndex:1}}><span style={{position:"absolute",right:0,top:-14,fontSize:8,color:C.green,fontWeight:600}}>target</span></div>{data.map((d,i)=>{const h=(d.calories/mx)*100;return<div key={i} style={{flex:1}}><div style={{width:"100%",height:`${h}%`,minHeight:2,background:d.calories>target?C.coral+"99":C.crimson+"30",borderRadius:4}} title={`${fmtDate(d.date)}: ${d.calories} kkal`}/></div>})}</div>)}
+function WeightChart({data}){if(data.length<2)return<div style={{padding:16,textAlign:"center",color:C.textLight}}>Minimal 2 data</div>;const w=data.map(d=>d.weight),mn=Math.min(...w)-0.3,mx=Math.max(...w)+0.3,rng=mx-mn;const svgW=Math.max(data.length*80,300),svgH=180,pad={top:28,bottom:45,left:10,right:10},cW=svgW-pad.left-pad.right,cH=svgH-pad.top-pad.bottom;const pts=data.map((d,i)=>({x:pad.left+(i/(data.length-1))*cW,y:pad.top+(1-(d.weight-mn)/rng)*cH,w:d.weight,dt:d.date}));const line=pts.map(p=>`${p.x},${p.y}`).join(" ");return(<div style={{overflowX:"auto"}}><svg width={svgW} height={svgH}><defs><linearGradient id="wg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.crimson} stopOpacity="0.12"/><stop offset="100%" stopColor={C.crimson} stopOpacity="0"/></linearGradient></defs><polygon points={`${pad.left},${svgH-pad.bottom} ${line} ${svgW-pad.right},${svgH-pad.bottom}`} fill="url(#wg)"/><polyline points={line} fill="none" stroke={C.crimson} strokeWidth="2.5" strokeLinejoin="round"/>{pts.map((p,i)=><g key={i}><circle cx={p.x} cy={p.y} r="5" fill={C.crimson} stroke={C.cardBg} strokeWidth="2.5"/><text x={p.x} y={p.y-12} textAnchor="middle" fill={C.crimson} fontSize="11" fontWeight="700" fontFamily="Poppins">{p.w}</text><text x={p.x} y={svgH-pad.bottom+16} textAnchor="middle" fill={C.textMuted} fontSize="9" fontFamily="Poppins">{fD(p.dt)}</text></g>)}</svg></div>)}
 
-function TrendChart({data,metrics,height=180,unitLabel="cm"}){const measured=data.filter(d=>d[metrics[0].key]>0);if(measured.length<2)return<div style={{padding:16,textAlign:"center",color:C.textLight}}>Minimal 2 data</div>;const[active,setActive]=useState(null);const vis=active?metrics.filter(m=>m.key===active):metrics;const allV=vis.flatMap(m=>measured.map(d=>d[m.key]).filter(v=>v>0));if(!allV.length)return null;const mn=Math.min(...allV)-1,mx=Math.max(...allV)+1,rng=mx-mn;const svgW=Math.max(measured.length*80,300),svgH=height,pad={top:30,bottom:45,left:10,right:15},cW=svgW-pad.left-pad.right,cH=svgH-pad.top-pad.bottom;return(<div><div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}><button onClick={()=>setActive(null)} style={{padding:"5px 10px",borderRadius:8,border:"none",cursor:"pointer",fontSize:10,fontWeight:600,fontFamily:"inherit",background:!active?C.crimson+"20":C.border,color:!active?C.crimson:C.textMuted}}>Semua</button>{metrics.map(m=><button key={m.key} onClick={()=>setActive(active===m.key?null:m.key)} style={{padding:"5px 10px",borderRadius:8,border:"none",cursor:"pointer",fontSize:10,fontWeight:600,fontFamily:"inherit",background:active===m.key?m.color+"25":C.border,color:active===m.key?m.color:C.textMuted}}>{m.label}</button>)}</div><div style={{overflowX:"auto"}}><svg width={svgW} height={svgH}>{[0,0.25,0.5,0.75,1].map((f,i)=>{const y=pad.top+f*cH;return<line key={i} x1={pad.left} y1={y} x2={svgW-pad.right} y2={y} stroke={C.border} strokeWidth="0.5"/>})}{vis.map(m=>{const pts=measured.map((d,i)=>({x:pad.left+(i/(measured.length-1))*cW,y:pad.top+(1-(d[m.key]-mn)/rng)*cH,v:d[m.key]}));const line=pts.map(p=>`${p.x},${p.y}`).join(" ");return<g key={m.key}><polyline points={line} fill="none" stroke={m.color} strokeWidth="2.5" strokeLinejoin="round"/>{pts.map((p,i)=><g key={i}><circle cx={p.x} cy={p.y} r="4.5" fill={m.color} stroke={C.cardBg} strokeWidth="2"/>{(vis.length===1||measured.length<=5)&&<text x={p.x} y={p.y-10} textAnchor="middle" fill={m.color} fontSize="10" fontWeight="700" fontFamily="Poppins">{p.v}</text>}</g>)}</g>})}{measured.map((d,i)=><text key={i} x={pad.left+(i/(measured.length-1))*cW} y={svgH-pad.bottom+18} textAnchor="middle" fill={C.textMuted} fontSize="9" fontFamily="Poppins">{fmtDate(d.date)}</text>)}</svg></div><div style={{display:"flex",gap:12,marginTop:10,flexWrap:"wrap"}}>{vis.map(m=>{const delta=Math.round((measured[measured.length-1][m.key]-measured[0][m.key])*10)/10;return<div key={m.key} style={{display:"flex",alignItems:"center",gap:5}}><div style={{width:12,height:3,borderRadius:2,background:m.color}}/><span style={{fontSize:10,color:C.textMuted}}>{m.label}</span><span style={{fontSize:10,fontWeight:700,color:delta<0?C.green:delta>0?C.coral:C.textMuted}}>{delta>0?"+":""}{delta}{unitLabel}</span></div>})}</div></div>)}
+function TrendChart({data,metrics,height=180,unitLabel="cm"}){const measured=data.filter(d=>d[metrics[0].key]>0);if(measured.length<2)return<div style={{padding:16,textAlign:"center",color:C.textLight}}>Minimal 2 data</div>;const[active,setActive]=useState(null);const vis=active?metrics.filter(m=>m.key===active):metrics;const allV=vis.flatMap(m=>measured.map(d=>d[m.key]).filter(v=>v>0));if(!allV.length)return null;const mn=Math.min(...allV)-1,mx=Math.max(...allV)+1,rng=mx-mn;const svgW=Math.max(measured.length*80,300),svgH=height,pad={top:30,bottom:45,left:10,right:15},cW=svgW-pad.left-pad.right,cH=svgH-pad.top-pad.bottom;return(<div><div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}><button onClick={()=>setActive(null)} style={{padding:"5px 10px",borderRadius:8,border:"none",cursor:"pointer",fontSize:10,fontWeight:600,fontFamily:"inherit",background:!active?C.crimson+"20":C.border,color:!active?C.crimson:C.textMuted}}>Semua</button>{metrics.map(m=><button key={m.key} onClick={()=>setActive(active===m.key?null:m.key)} style={{padding:"5px 10px",borderRadius:8,border:"none",cursor:"pointer",fontSize:10,fontWeight:600,fontFamily:"inherit",background:active===m.key?m.color+"25":C.border,color:active===m.key?m.color:C.textMuted}}>{m.label}</button>)}</div><div style={{overflowX:"auto"}}><svg width={svgW} height={svgH}>{[0,0.25,0.5,0.75,1].map((f,i)=>{const y=pad.top+f*cH;return<line key={i} x1={pad.left} y1={y} x2={svgW-pad.right} y2={y} stroke={C.border} strokeWidth="0.5"/>})}{vis.map(m=>{const pts=measured.map((d,i)=>({x:pad.left+(i/(measured.length-1))*cW,y:pad.top+(1-(d[m.key]-mn)/rng)*cH,v:d[m.key]}));const line=pts.map(p=>`${p.x},${p.y}`).join(" ");return<g key={m.key}><polyline points={line} fill="none" stroke={m.color} strokeWidth="2.5" strokeLinejoin="round"/>{pts.map((p,i)=><g key={i}><circle cx={p.x} cy={p.y} r="4.5" fill={m.color} stroke={C.cardBg} strokeWidth="2"/>{(vis.length===1||measured.length<=5)&&<text x={p.x} y={p.y-10} textAnchor="middle" fill={m.color} fontSize="10" fontWeight="700" fontFamily="Poppins">{p.v}</text>}</g>)}</g>})}{measured.map((d,i)=><text key={i} x={pad.left+(i/(measured.length-1))*cW} y={svgH-pad.bottom+18} textAnchor="middle" fill={C.textMuted} fontSize="9" fontFamily="Poppins">{fD(d.date)}</text>)}</svg></div><div style={{display:"flex",gap:12,marginTop:10,flexWrap:"wrap"}}>{vis.map(m=>{const delta=Math.round((measured[measured.length-1][m.key]-measured[0][m.key])*10)/10;return<div key={m.key} style={{display:"flex",alignItems:"center",gap:5}}><div style={{width:12,height:3,borderRadius:2,background:m.color}}/><span style={{fontSize:10,color:C.textMuted}}>{m.label}</span><span style={{fontSize:10,fontWeight:700,color:delta<0?C.green:delta>0?C.coral:C.textMuted}}>{delta>0?"+":""}{delta}{unitLabel}</span></div>})}</div></div>)}
 
 function MCard({label,value,unit="cm",icon}){return<div style={{background:C.ivoryDark,borderRadius:10,padding:"12px 14px",border:`1px solid ${C.cardBorder}`,flex:"1 1 calc(33% - 8px)",minWidth:90}}><div style={{fontSize:9,color:C.textMuted,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:5,fontWeight:600}}>{icon&&<span style={{marginRight:3}}>{icon}</span>}{label}</div><div style={{fontSize:22,fontWeight:800,color:C.text,fontFamily:"'Crimson Pro',serif"}}>{value||"—"}<span style={{fontSize:11,fontWeight:400,color:C.textLight,marginLeft:2}}>{value?unit:""}</span></div></div>}
 
-function App(){const[view,setView]=useState("daily");const[meals,setMeals]=useState([]);const[weights,setWeights]=useState([]);const[meas,setMeas]=useState([]);const[targets,setTargets]=useState(DEFAULTS);const[loading,setLoading]=useState(true);const[lastRef,setLastRef]=useState(null);const[status,setStatus]=useState("loading");const[selDate,setSelDate]=useState(null);
-const fetchAll=useCallback(async()=>{setLoading(true);setStatus("loading");let ok=0;
-const tR=await fetchSheet(GIDS.targets);if(tR&&tR.length){const t={...DEFAULTS};tR.forEach(r=>{const v=Object.values(r).filter(x=>x!=="");const k=String(v[0]||"").toLowerCase().trim();const val=num(v[1]);if(k==="calories")t.calories=val;if(k==="protein")t.protein=val;if(k==="fat")t.fat=val;if(k==="carbs")t.carbs=val});setTargets(t);ok++}
-const mR=await fetchSheet(GIDS.meals);if(mR){setMeals(mR.map(r=>{const v=Object.values(r).filter((x,i)=>!Object.keys(r)[i].endsWith("_f"));return{date:normalizeDate(v[0]),time:normalizeTime(v[1]),meal:String(v[2]||""),desc:String(v[3]||""),calories:num(v[4]),protein:num(v[5]),carbs:num(v[6]),fat:num(v[7])}}).filter(m=>m.date&&m.calories>0));ok++}
-const wR=await fetchSheet(GIDS.weight);if(wR){setWeights(wR.map(r=>{const v=Object.values(r).filter((x,i)=>!Object.keys(r)[i].endsWith("_f"));return{date:normalizeDate(v[0]),time:normalizeTime(v[1]),weight:num(v[2]),stomach:String(v[3]||""),bodyFat:fixBF(v[4]),visceralFat:num(v[5]),bodyAge:num(v[6])}}).filter(w=>w.date&&w.weight>0));ok++}
-const msR=await fetchSheet(GIDS.measurements);if(msR){setMeas(msR.map(r=>{const v=Object.values(r).filter((x,i)=>!Object.keys(r)[i].endsWith("_f"));return{date:normalizeDate(v[0]),chest:num(v[1]),waist:num(v[2]),belly:num(v[3]),armL:num(v[4]),armR:num(v[5]),thighL:num(v[6]),thighR:num(v[7]),calf:num(v[8])}}).filter(m=>m.date&&m.chest>0));ok++}
-setStatus(ok>0?"ok":"error");setLastRef(new Date());setLoading(false)},[]);
-useEffect(()=>{fetchAll()},[fetchAll]);
-const dates=useMemo(()=>uniqDates(meals),[meals]);useEffect(()=>{if(dates.length&&!selDate)setSelDate(dates[0])},[dates,selDate]);
-const cd=selDate||dates[0]||"",daily=useMemo(()=>getDailySum(meals,cd),[meals,cd]),weekly=useMemo(()=>dates.slice(0,7).map(d=>getDailySum(meals,d)).reverse(),[dates,meals]),monthly=useMemo(()=>dates.slice(0,30).map(d=>getDailySum(meals,d)).reverse(),[dates,meals]),T=targets;
-const wAvg=useMemo(()=>{const w=weekly,l=w.length||1;return{cal:Math.round(w.reduce((s,d)=>s+d.calories,0)/l),pro:Math.round(w.reduce((s,d)=>s+d.protein,0)/l),fat:Math.round(w.reduce((s,d)=>s+d.fat,0)/l),carb:Math.round(w.reduce((s,d)=>s+d.carbs,0)/l),onT:w.filter(d=>Math.abs(d.calories-T.calories)<T.calories*0.1).length}},[weekly,T]);
-const idx=dates.indexOf(cd),lw=weights.length?weights[weights.length-1]:null,wd=weights.length>=2?Math.round((weights[weights.length-1].weight-weights[0].weight)*10)/10:0,lm=meas.length?meas[meas.length-1]:null;
+// Navigation buttons
+function NavBar({label,onPrev,onNext}){return(<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}><button onClick={onPrev} style={{background:C.crimson+"10",border:"none",color:C.crimson,padding:"6px 14px",borderRadius:8,cursor:"pointer",fontSize:16,fontWeight:700}}>‹</button><span style={{fontSize:14,fontWeight:600,color:C.text}}>{label}</span><button onClick={onNext} style={{background:C.crimson+"10",border:"none",color:C.crimson,padding:"6px 14px",borderRadius:8,cursor:"pointer",fontSize:16,fontWeight:700}}>›</button></div>)}
 
-if(loading)return(<div style={{minHeight:"100vh",background:C.ivory,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}><div style={{fontSize:24,fontWeight:800,color:C.crimson,fontFamily:"'Crimson Pro',serif",marginBottom:8}}>Project Rausyan Fuel</div><div style={{color:C.textMuted,fontSize:14}}>Loading data...</div><div style={{marginTop:12,width:40,height:40,border:`3px solid ${C.border}`,borderTop:`3px solid ${C.crimson}`,borderRadius:"50%",animation:"spin 1s linear infinite"}}/><style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style></div>);
+// ═══ MAIN APP ═══
+function App(){
+  const[view,setView]=useState("daily");
+  const[meals,setMeals]=useState([]);
+  const[weights,setWeights]=useState([]);
+  const[meas,setMeas]=useState([]);
+  const[targetLog,setTargetLog]=useState([{date:"2026-01-01",...DEFAULTS}]);
+  const[loading,setLoading]=useState(true);
+  const[lastRef,setLastRef]=useState(null);
+  const[status,setStatus]=useState("loading");
+  const[selDate,setSelDate]=useState(null);
+  const[weekOff,setWeekOff]=useState(0);
+  const[monthStr,setMonthStr]=useState(()=>{const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`});
 
-const tabs=[{k:"daily",l:"Harian"},{k:"weekly",l:"Mingguan"},{k:"monthly",l:"Bulanan"},{k:"body",l:"Body"}];
-return(<div style={{minHeight:"100vh",background:C.ivory,color:C.text,maxWidth:960,margin:"0 auto",padding:"20px 16px"}}>
-<div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:22}}><div><h1 style={{fontSize:22,fontWeight:800,color:C.crimson,fontFamily:"'Crimson Pro',serif",margin:0}}>Project Rausyan Fuel</h1><p style={{fontSize:10,color:C.textMuted,marginTop:3,letterSpacing:"1px",textTransform:"uppercase",fontWeight:500}}>v.1 — Kalori • Macro • Body Tracker</p></div><button onClick={fetchAll} style={{background:C.crimson+"15",border:`1px solid ${C.crimson}30`,borderRadius:8,padding:"7px 14px",fontSize:11,color:C.crimson,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>↻ Refresh</button></div>
-{status==="error"&&<div style={{...sCard,background:C.coral+"10",borderColor:C.coral+"30",color:C.coral,fontSize:12,textAlign:"center"}}>Gagal fetch data.</div>}
-{lastRef&&<div style={{fontSize:10,color:C.textLight,textAlign:"right",marginBottom:8}}>Update: {lastRef.toLocaleTimeString("id-ID")} • {meals.length} meals • {weights.length} weights</div>}
-<div style={{display:"flex",background:C.crimson+"08",borderRadius:12,padding:3,marginBottom:18}}>{tabs.map(t=><button key={t.k} onClick={()=>setView(t.k)} style={{flex:1,padding:"9px 0",border:"none",borderRadius:10,fontSize:12,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.8px",cursor:"pointer",fontFamily:"inherit",transition:"all 0.2s",background:view===t.k?C.crimson:"transparent",color:view===t.k?"#fff":C.textMuted}}>{t.l}</button>)}</div>
+  const fetchAll=useCallback(async()=>{
+    setLoading(true);setStatus("loading");let ok=0;
+    // Targets as log
+    const tR=await fetchSheet(GIDS.targets);
+    if(tR&&tR.length){
+      const tl=tR.map(r=>{const v=Object.values(r).filter((x,i)=>!Object.keys(r)[i].endsWith("_f"));return{date:nDate(v[0]),calories:num(v[1]),protein:num(v[2]),fat:num(v[3]),carbs:num(v[4])}}).filter(t=>t.date&&t.calories>0);
+      if(tl.length)setTargetLog(tl);ok++
+    }
+    const mR=await fetchSheet(GIDS.meals);
+    if(mR){setMeals(mR.map(r=>{const v=Object.values(r).filter((x,i)=>!Object.keys(r)[i].endsWith("_f"));return{date:nDate(v[0]),time:nTime(v[1]),meal:String(v[2]||""),desc:String(v[3]||""),calories:num(v[4]),protein:num(v[5]),carbs:num(v[6]),fat:num(v[7])}}).filter(m=>m.date&&m.calories>0));ok++}
+    const wR=await fetchSheet(GIDS.weight);
+    if(wR){setWeights(wR.map(r=>{const v=Object.values(r).filter((x,i)=>!Object.keys(r)[i].endsWith("_f"));return{date:nDate(v[0]),time:nTime(v[1]),weight:num(v[2]),stomach:String(v[3]||""),bodyFat:fixBF(v[4]),visceralFat:num(v[5]),bodyAge:num(v[6])}}).filter(w=>w.date&&w.weight>0));ok++}
+    const msR=await fetchSheet(GIDS.measurements);
+    if(msR){setMeas(msR.map(r=>{const v=Object.values(r).filter((x,i)=>!Object.keys(r)[i].endsWith("_f"));return{date:nDate(v[0]),chest:num(v[1]),waist:num(v[2]),belly:num(v[3]),armL:num(v[4]),armR:num(v[5]),thighL:num(v[6]),thighR:num(v[7]),calf:num(v[8])}}).filter(m=>m.date&&m.chest>0));ok++}
+    setStatus(ok>0?"ok":"error");setLastRef(new Date());setLoading(false)
+  },[]);
 
-{view==="daily"&&<><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}><button onClick={()=>idx<dates.length-1&&setSelDate(dates[idx+1])} style={{background:C.crimson+"10",border:"none",color:C.crimson,padding:"6px 14px",borderRadius:8,cursor:"pointer",fontSize:16,fontWeight:700}}>‹</button><span style={{fontSize:14,fontWeight:600,color:C.text}}>{fmtDate(cd)}</span><button onClick={()=>idx>0&&setSelDate(dates[idx-1])} style={{background:C.crimson+"10",border:"none",color:C.crimson,padding:"6px 14px",borderRadius:8,cursor:"pointer",fontSize:16,fontWeight:700}}>›</button></div><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:14}}><div style={{...sCard,padding:"26px 20px"}}><Ring consumed={daily.calories} target={T.calories}/><div style={{textAlign:"center",marginTop:10,fontSize:11,color:C.textMuted}}>{pct(daily.calories,T.calories)}% dari target harian</div></div><div style={sCard}><div style={sLabel}>Macronutrients</div><MacroBar label="Protein" value={daily.protein} target={T.protein} color={C.green}/><MacroBar label="Carbs" value={daily.carbs} target={T.carbs} color={C.amber}/><MacroBar label="Fat" value={daily.fat} target={T.fat} color={C.orange}/></div></div><div style={sCard}><div style={sLabel}>Log Makanan</div><MealLog entries={daily.entries}/></div></>}
+  useEffect(()=>{fetchAll()},[fetchAll]);
+  const dates=useMemo(()=>uDates(meals),[meals]);
+  useEffect(()=>{if(dates.length&&!selDate)setSelDate(dates[0])},[dates,selDate]);
 
-{view==="weekly"&&<><div style={{...sCard,display:"flex",justifyContent:"space-around",padding:"22px 16px"}}><Stat label="Avg Kkal" value={wAvg.cal} sub={`target: ${T.calories}`}/><Stat label="On Target" value={`${wAvg.onT}/${weekly.length}`} sub="hari (±10%)"/><Stat label="Avg Protein" value={`${wAvg.pro}g`} sub={`target: ${T.protein}g`}/></div><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:14}}><div style={sCard}><div style={sLabel}>Kalori 7 Hari Terakhir</div><BarChart data={weekly} target={T.calories}/><div style={{display:"flex",justifyContent:"space-between",marginTop:6}}>{weekly.map((d,i)=><span key={i} style={{fontSize:9,color:C.textLight,flex:1,textAlign:"center"}}>{new Date(d.date+"T00:00:00").toLocaleDateString("id-ID",{weekday:"short"})}</span>)}</div></div><div style={sCard}><div style={sLabel}>Rata-rata Macro</div><MacroBar label="Protein" value={wAvg.pro} target={T.protein} color={C.green}/><MacroBar label="Carbs" value={wAvg.carb} target={T.carbs} color={C.amber}/><MacroBar label="Fat" value={wAvg.fat} target={T.fat} color={C.orange}/></div></div></>}
+  const cd=selDate||dates[0]||"";
+  const T=useMemo(()=>getTargetForDate(targetLog,cd),[targetLog,cd]);
+  const daily=useMemo(()=>getDSum(meals,cd),[meals,cd]);
 
-{view==="monthly"&&(()=>{const ml=monthly.length||1,ma={cal:Math.round(monthly.reduce((s,d)=>s+d.calories,0)/ml),pro:Math.round(monthly.reduce((s,d)=>s+d.protein,0)/ml),carb:Math.round(monthly.reduce((s,d)=>s+d.carbs,0)/ml),fat:Math.round(monthly.reduce((s,d)=>s+d.fat,0)/ml),onT:monthly.filter(d=>Math.abs(d.calories-T.calories)<T.calories*0.1).length};return<><div style={{...sCard,display:"flex",justifyContent:"space-around",padding:"22px 16px"}}><Stat label="Avg Kkal" value={ma.cal} sub={`target: ${T.calories}`}/><Stat label="On Target" value={`${ma.onT}/${monthly.length}`} sub="hari (±10%)"/><Stat label="Avg Protein" value={`${ma.pro}g`} sub={`target: ${T.protein}g`}/></div><div style={sCard}><div style={sLabel}>Kalori 30 Hari Terakhir</div><BarChart data={monthly} target={T.calories} height={160}/></div><div style={sCard}><div style={sLabel}>Rata-rata Macro</div><MacroBar label="Protein" value={ma.pro} target={T.protein} color={C.green}/><MacroBar label="Carbs" value={ma.carb} target={T.carbs} color={C.amber}/><MacroBar label="Fat" value={ma.fat} target={T.fat} color={C.orange}/></div></>})()}
+  // Weekly data with navigation
+  const weekData=useMemo(()=>{
+    const {start,end}=getWeekRange(dates,weekOff);
+    const filtered=dates.filter(d=>d>=start&&d<=end);
+    return filtered.map(d=>getDSum(meals,d)).reverse();
+  },[dates,meals,weekOff]);
 
-{view==="body"&&<>
-{lw&&<div style={{...sCard,padding:"24px 20px"}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}><div><div style={sLabel}>Berat Badan Terakhir</div><div style={{fontSize:44,fontWeight:800,color:C.text,lineHeight:1,fontFamily:"'Crimson Pro',serif"}}>{lw.weight}<span style={{fontSize:18,fontWeight:400,color:C.textMuted,marginLeft:4}}>kg</span></div><div style={{marginTop:8,display:"flex",gap:12,alignItems:"center",flexWrap:"wrap"}}><span style={{fontSize:12,fontWeight:600,color:wd<0?C.green:wd>0?C.coral:C.textMuted}}>{wd>0?"+":""}{wd} kg</span>{lw.stomach&&<span style={{fontSize:10,padding:"3px 8px",borderRadius:6,fontWeight:600,background:C.crimson+"10",color:C.textMuted}}>{lw.stomach}</span>}</div></div><div style={{textAlign:"right"}}><div style={{fontSize:10,color:C.textMuted}}>{fmtDate(lw.date)}</div><div style={{fontSize:16,fontWeight:700,color:C.text,marginTop:2}}>{lw.time}</div></div></div></div>}
-{weights.length>0&&<div style={sCard}><div style={sLabel}>Tren Berat Badan</div><WeightChart data={weights}/></div>}
-{lw&&(lw.bodyFat>0||lw.visceralFat>0)&&<div style={sCard}><div style={sLabel}>Komposisi Tubuh</div><div style={{display:"flex",gap:8,flexWrap:"wrap"}}><MCard label="Body Fat" value={lw.bodyFat||null} unit="%" icon="🔥"/><MCard label="Visceral Fat" value={lw.visceralFat||null} unit="" icon="🫀"/><MCard label="Body Age" value={lw.bodyAge||null} unit="thn" icon="⏳"/></div></div>}
-{lm&&<div style={sCard}><div style={sLabel}>Pengukuran Terakhir — {fmtDate(lm.date)}</div><div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:8}}><MCard label="Dada" value={lm.chest||null} icon="📐"/><MCard label="Pinggang" value={lm.waist||null} icon="📏"/><MCard label="Perut" value={lm.belly||null} icon="📏"/></div><div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:8}}><MCard label="Lengan L" value={lm.armL||null} icon="💪"/><MCard label="Lengan R" value={lm.armR||null} icon="💪"/></div><div style={{display:"flex",gap:8,flexWrap:"wrap"}}><MCard label="Paha L" value={lm.thighL||null} icon="🦵"/><MCard label="Paha R" value={lm.thighR||null} icon="🦵"/><MCard label="Betis" value={lm.calf||null} icon="🦵"/></div></div>}
-{meas.length>=2&&<div style={sCard}><div style={sLabel}>Tren Lingkar Tubuh</div><TrendChart data={meas} unitLabel=" cm" metrics={[{key:"chest",label:"Dada",color:C.crimson},{key:"waist",label:"Pinggang",color:C.orange},{key:"belly",label:"Perut",color:C.coral},{key:"armL",label:"Arm L",color:C.green},{key:"armR",label:"Arm R",color:C.teal},{key:"thighL",label:"Paha L",color:C.amber},{key:"thighR",label:"Paha R",color:C.purple},{key:"calf",label:"Betis",color:C.crimsonLight}]}/></div>}
-{weights.filter(w=>w.bodyFat>0).length>=2&&<div style={sCard}><div style={sLabel}>Tren Komposisi Tubuh</div><TrendChart data={weights.filter(w=>w.bodyFat>0)} unitLabel="" metrics={[{key:"bodyFat",label:"Body Fat %",color:C.orange},{key:"visceralFat",label:"Visceral Fat",color:C.coral},{key:"bodyAge",label:"Body Age",color:C.purple}]}/></div>}
-{!lw&&!lm&&<div style={{...sCard,textAlign:"center",color:C.textMuted,fontSize:14,padding:40}}>Belum ada data body.</div>}
-</>}
+  const weekLabel=useMemo(()=>{
+    const {start,end}=getWeekRange(dates,weekOff);
+    return `${fDShort(start)} - ${fDShort(end)}`;
+  },[dates,weekOff]);
 
-<div style={{textAlign:"center",padding:"24px 0 8px",fontSize:10,color:C.textLight}}>Project Rausyan Fuel v.1 • Live dari Google Sheets</div>
-</div>)}
+  const weekAvg=useMemo(()=>{
+    const w=weekData,l=w.length||1;
+    const avgTarget=w.length?getTargetForDate(targetLog,w[Math.floor(w.length/2)].date):T;
+    return{cal:Math.round(w.reduce((s,d)=>s+d.calories,0)/l),pro:Math.round(w.reduce((s,d)=>s+d.protein,0)/l),fat:Math.round(w.reduce((s,d)=>s+d.fat,0)/l),carb:Math.round(w.reduce((s,d)=>s+d.carbs,0)/l),onT:w.filter(d=>{const t=getTargetForDate(targetLog,d.date);return Math.abs(d.calories-t.calories)<t.calories*0.1}).length,target:avgTarget}
+  },[weekData,targetLog,T]);
+
+  // Monthly data with navigation
+  const monthData=useMemo(()=>{
+    const {start,end}=getMonthRange(monthStr);
+    const filtered=dates.filter(d=>d>=start&&d<=end);
+    return filtered.map(d=>getDSum(meals,d)).reverse();
+  },[dates,meals,monthStr]);
+
+  const monthLabel=useMemo(()=>{
+    const [y,m]=monthStr.split("-");
+    const d=new Date(Number(y),Number(m)-1,1);
+    return d.toLocaleDateString("id-ID",{month:"long",year:"numeric"});
+  },[monthStr]);
+
+  const monthAvg=useMemo(()=>{
+    const w=monthData,l=w.length||1;
+    const avgTarget=w.length?getTargetForDate(targetLog,w[Math.floor(w.length/2)].date):T;
+    return{cal:Math.round(w.reduce((s,d)=>s+d.calories,0)/l),pro:Math.round(w.reduce((s,d)=>s+d.protein,0)/l),fat:Math.round(w.reduce((s,d)=>s+d.fat,0)/l),carb:Math.round(w.reduce((s,d)=>s+d.carbs,0)/l),onT:w.filter(d=>{const t=getTargetForDate(targetLog,d.date);return Math.abs(d.calories-t.calories)<t.calories*0.1}).length,target:avgTarget}
+  },[monthData,targetLog,T]);
+
+  function shiftMonth(dir){
+    const [y,m]=monthStr.split("-").map(Number);
+    const d=new Date(y,m-1+dir,1);
+    setMonthStr(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`);
+  }
+
+  const idx=dates.indexOf(cd);
+  const lw=weights.length?weights[weights.length-1]:null;
+  const wd=weights.length>=2?Math.round((weights[weights.length-1].weight-weights[0].weight)*10)/10:0;
+  const lm=meas.length?meas[meas.length-1]:null;
+
+  if(loading)return(<div style={{minHeight:"100vh",background:C.ivory,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}><div style={{fontSize:24,fontWeight:800,color:C.crimson,fontFamily:"'Crimson Pro',serif",marginBottom:8}}>Project Rausyan Fuel</div><div style={{color:C.textMuted,fontSize:14}}>Loading data...</div><div style={{marginTop:12,width:40,height:40,border:`3px solid ${C.border}`,borderTop:`3px solid ${C.crimson}`,borderRadius:"50%",animation:"spin 1s linear infinite"}}/><style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style></div>);
+
+  const tabs=[{k:"daily",l:"Harian"},{k:"weekly",l:"Mingguan"},{k:"monthly",l:"Bulanan"},{k:"body",l:"Body"}];
+  return(<div style={{minHeight:"100vh",background:C.ivory,color:C.text,maxWidth:960,margin:"0 auto",padding:"20px 16px"}}>
+    {/* Header */}
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:22}}><div><h1 style={{fontSize:22,fontWeight:800,color:C.crimson,fontFamily:"'Crimson Pro',serif",margin:0}}>Project Rausyan Fuel</h1><p style={{fontSize:10,color:C.textMuted,marginTop:3,letterSpacing:"1px",textTransform:"uppercase",fontWeight:500}}>v.1 — Kalori • Macro • Body Tracker</p></div><button onClick={fetchAll} style={{background:C.crimson+"15",border:`1px solid ${C.crimson}30`,borderRadius:8,padding:"7px 14px",fontSize:11,color:C.crimson,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>↻ Refresh</button></div>
+    {status==="error"&&<div style={{...sCard,background:C.coral+"10",borderColor:C.coral+"30",color:C.coral,fontSize:12,textAlign:"center"}}>Gagal fetch data.</div>}
+    {lastRef&&<div style={{fontSize:10,color:C.textLight,textAlign:"right",marginBottom:8}}>Update: {lastRef.toLocaleTimeString("id-ID")} • {meals.length} meals • {weights.length} weights</div>}
+    {/* Tabs */}
+    <div style={{display:"flex",background:C.crimson+"08",borderRadius:12,padding:3,marginBottom:18}}>{tabs.map(t=><button key={t.k} onClick={()=>setView(t.k)} style={{flex:1,padding:"9px 0",border:"none",borderRadius:10,fontSize:12,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.8px",cursor:"pointer",fontFamily:"inherit",transition:"all 0.2s",background:view===t.k?C.crimson:"transparent",color:view===t.k?"#fff":C.textMuted}}>{t.l}</button>)}</div>
+
+    {/* DAILY */}
+    {view==="daily"&&<>
+      <NavBar label={fD(cd)} onPrev={()=>idx<dates.length-1&&setSelDate(dates[idx+1])} onNext={()=>idx>0&&setSelDate(dates[idx-1])}/>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:14}}>
+        <div style={{...sCard,padding:"26px 20px"}}><Ring consumed={daily.calories} target={T.calories}/><div style={{textAlign:"center",marginTop:10,fontSize:11,color:C.textMuted}}>{pct(daily.calories,T.calories)}% dari target harian</div></div>
+        <div style={sCard}><div style={sLabel}>Macronutrients</div><MacroBar label="Protein" value={daily.protein} target={T.protein} color={C.green}/><MacroBar label="Carbs" value={daily.carbs} target={T.carbs} color={C.amber}/><MacroBar label="Fat" value={daily.fat} target={T.fat} color={C.orange}/></div>
+      </div>
+      <div style={sCard}><div style={sLabel}>Log Makanan</div><MealLog entries={daily.entries}/></div>
+    </>}
+
+    {/* WEEKLY */}
+    {view==="weekly"&&<>
+      <NavBar label={weekLabel} onPrev={()=>setWeekOff(weekOff+1)} onNext={()=>weekOff>0&&setWeekOff(weekOff-1)}/>
+      <div style={{...sCard,display:"flex",justifyContent:"space-around",padding:"22px 16px"}}><Stat label="Avg Kkal" value={weekAvg.cal} sub={`target: ${weekAvg.target.calories}`}/><Stat label="On Target" value={`${weekAvg.onT}/${weekData.length}`} sub="hari (±10%)"/><Stat label="Avg Protein" value={`${weekAvg.pro}g`} sub={`target: ${weekAvg.target.protein}g`}/></div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:14}}>
+        <div style={sCard}><div style={sLabel}>Kalori Harian</div><BarChart data={weekData} targetLog={targetLog} height={160}/></div>
+        <div style={sCard}><div style={sLabel}>Rata-rata Macro</div><MacroBar label="Protein" value={weekAvg.pro} target={weekAvg.target.protein} color={C.green}/><MacroBar label="Carbs" value={weekAvg.carb} target={weekAvg.target.carbs} color={C.amber}/><MacroBar label="Fat" value={weekAvg.fat} target={weekAvg.target.fat} color={C.orange}/></div>
+      </div>
+    </>}
+
+    {/* MONTHLY */}
+    {view==="monthly"&&<>
+      <NavBar label={monthLabel} onPrev={()=>shiftMonth(-1)} onNext={()=>shiftMonth(1)}/>
+      <div style={{...sCard,display:"flex",justifyContent:"space-around",padding:"22px 16px"}}><Stat label="Avg Kkal" value={monthAvg.cal} sub={`target: ${monthAvg.target.calories}`}/><Stat label="On Target" value={`${monthAvg.onT}/${monthData.length}`} sub="hari (±10%)"/><Stat label="Avg Protein" value={`${monthAvg.pro}g`} sub={`target: ${monthAvg.target.protein}g`}/></div>
+      <div style={sCard}><div style={sLabel}>Kalori Harian</div><BarChart data={monthData} targetLog={targetLog} height={180}/></div>
+      <div style={sCard}><div style={sLabel}>Rata-rata Macro</div><MacroBar label="Protein" value={monthAvg.pro} target={monthAvg.target.protein} color={C.green}/><MacroBar label="Carbs" value={monthAvg.carb} target={monthAvg.target.carbs} color={C.amber}/><MacroBar label="Fat" value={monthAvg.fat} target={monthAvg.target.fat} color={C.orange}/></div>
+    </>}
+
+    {/* BODY */}
+    {view==="body"&&<>
+      {lw&&<div style={{...sCard,padding:"24px 20px"}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}><div><div style={sLabel}>Berat Badan Terakhir</div><div style={{fontSize:44,fontWeight:800,color:C.text,lineHeight:1,fontFamily:"'Crimson Pro',serif"}}>{lw.weight}<span style={{fontSize:18,fontWeight:400,color:C.textMuted,marginLeft:4}}>kg</span></div><div style={{marginTop:8,display:"flex",gap:12,alignItems:"center",flexWrap:"wrap"}}><span style={{fontSize:12,fontWeight:600,color:wd<0?C.green:wd>0?C.coral:C.textMuted}}>{wd>0?"+":""}{wd} kg</span>{lw.stomach&&<span style={{fontSize:10,padding:"3px 8px",borderRadius:6,fontWeight:600,background:C.crimson+"10",color:C.textMuted}}>{lw.stomach}</span>}</div></div><div style={{textAlign:"right"}}><div style={{fontSize:10,color:C.textMuted}}>{fD(lw.date)}</div><div style={{fontSize:16,fontWeight:700,color:C.text,marginTop:2}}>{lw.time}</div></div></div></div>}
+      {weights.length>0&&<div style={sCard}><div style={sLabel}>Tren Berat Badan</div><WeightChart data={weights}/></div>}
+      {lw&&(lw.bodyFat>0||lw.visceralFat>0)&&<div style={sCard}><div style={sLabel}>Komposisi Tubuh</div><div style={{display:"flex",gap:8,flexWrap:"wrap"}}><MCard label="Body Fat" value={lw.bodyFat||null} unit="%" icon="🔥"/><MCard label="Visceral Fat" value={lw.visceralFat||null} unit="" icon="🫀"/><MCard label="Body Age" value={lw.bodyAge||null} unit="thn" icon="⏳"/></div></div>}
+      {lm&&<div style={sCard}><div style={sLabel}>Pengukuran Terakhir — {fD(lm.date)}</div><div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:8}}><MCard label="Dada" value={lm.chest||null} icon="📐"/><MCard label="Pinggang" value={lm.waist||null} icon="📏"/><MCard label="Perut" value={lm.belly||null} icon="📏"/></div><div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:8}}><MCard label="Lengan L" value={lm.armL||null} icon="💪"/><MCard label="Lengan R" value={lm.armR||null} icon="💪"/></div><div style={{display:"flex",gap:8,flexWrap:"wrap"}}><MCard label="Paha L" value={lm.thighL||null} icon="🦵"/><MCard label="Paha R" value={lm.thighR||null} icon="🦵"/><MCard label="Betis" value={lm.calf||null} icon="🦵"/></div></div>}
+      {meas.length>=2&&<div style={sCard}><div style={sLabel}>Tren Lingkar Tubuh</div><TrendChart data={meas} unitLabel=" cm" metrics={[{key:"chest",label:"Dada",color:C.crimson},{key:"waist",label:"Pinggang",color:C.orange},{key:"belly",label:"Perut",color:C.coral},{key:"armL",label:"Arm L",color:C.green},{key:"armR",label:"Arm R",color:C.teal},{key:"thighL",label:"Paha L",color:C.amber},{key:"thighR",label:"Paha R",color:C.purple},{key:"calf",label:"Betis",color:C.crimsonLight}]}/></div>}
+      {weights.filter(w=>w.bodyFat>0).length>=2&&<div style={sCard}><div style={sLabel}>Tren Komposisi Tubuh</div><TrendChart data={weights.filter(w=>w.bodyFat>0)} unitLabel="" metrics={[{key:"bodyFat",label:"Body Fat %",color:C.orange},{key:"visceralFat",label:"Visceral Fat",color:C.coral},{key:"bodyAge",label:"Body Age",color:C.purple}]}/></div>}
+      {!lw&&!lm&&<div style={{...sCard,textAlign:"center",color:C.textMuted,fontSize:14,padding:40}}>Belum ada data body.</div>}
+    </>}
+
+    <div style={{textAlign:"center",padding:"24px 0 8px",fontSize:10,color:C.textLight}}>Project Rausyan Fuel v.1 • Live dari Google Sheets</div>
+  </div>)
+}
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
-</script>
-</body>
-</html>
+</script></body></html>
