@@ -61,12 +61,16 @@ function getTargetForDate(targetLog, date) {
 
 // Get date range for week/month navigation
 function getWeekRange(allDates, weekOffset) {
-  const today = allDates[0] || new Date().toISOString().split("T")[0];
-  const d = new Date(today + "T00:00:00");
-  d.setDate(d.getDate() - weekOffset * 7);
-  const end = d.toISOString().split("T")[0];
-  d.setDate(d.getDate() - 6);
-  const start = d.toISOString().split("T")[0];
+  // Get current week aligned to Sunday-Saturday
+  const today = new Date((allDates[0] || new Date().toISOString().split("T")[0]) + "T00:00:00");
+  // Find this week's Sunday
+  const dayOfWeek = today.getDay(); // 0=Sunday
+  const sunday = new Date(today);
+  sunday.setDate(today.getDate() - dayOfWeek - weekOffset * 7);
+  const saturday = new Date(sunday);
+  saturday.setDate(sunday.getDate() + 6);
+  const start = sunday.toISOString().split("T")[0];
+  const end = saturday.toISOString().split("T")[0];
   return {start, end};
 }
 
@@ -171,8 +175,14 @@ function App(){
   // Weekly data with navigation
   const weekData=useMemo(()=>{
     const {start,end}=getWeekRange(dates,weekOff);
-    const filtered=dates.filter(d=>d>=start&&d<=end);
-    return filtered.map(d=>getDSum(meals,d)).reverse();
+    // Generate all 7 days in the range
+    const allDays=[];
+    const s=new Date(start+"T00:00:00");
+    const e=new Date(end+"T00:00:00");
+    for(let d=new Date(s);d<=e;d.setDate(d.getDate()+1)){
+      allDays.push(d.toISOString().split("T")[0]);
+    }
+    return allDays.map(d=>getDSum(meals,d));
   },[dates,meals,weekOff]);
 
   const weekLabel=useMemo(()=>{
@@ -181,16 +191,21 @@ function App(){
   },[dates,weekOff]);
 
   const weekAvg=useMemo(()=>{
-    const w=weekData,l=w.length||1;
+    const w=weekData.filter(d=>d.calories>0),l=w.length||1;
     const avgTarget=w.length?getTargetForDate(targetLog,w[Math.floor(w.length/2)].date):T;
-    return{cal:Math.round(w.reduce((s,d)=>s+d.calories,0)/l),pro:Math.round(w.reduce((s,d)=>s+d.protein,0)/l),fat:Math.round(w.reduce((s,d)=>s+d.fat,0)/l),carb:Math.round(w.reduce((s,d)=>s+d.carbs,0)/l),onT:w.filter(d=>{const t=getTargetForDate(targetLog,d.date);return Math.abs(d.calories-t.calories)<t.calories*0.1}).length,target:avgTarget}
+    return{cal:Math.round(w.reduce((s,d)=>s+d.calories,0)/l),pro:Math.round(w.reduce((s,d)=>s+d.protein,0)/l),fat:Math.round(w.reduce((s,d)=>s+d.fat,0)/l),carb:Math.round(w.reduce((s,d)=>s+d.carbs,0)/l),onT:w.filter(d=>{const t=getTargetForDate(targetLog,d.date);return Math.abs(d.calories-t.calories)<t.calories*0.1}).length,daysWithData:w.length,target:avgTarget}
   },[weekData,targetLog,T]);
 
   // Monthly data with navigation
   const monthData=useMemo(()=>{
     const {start,end}=getMonthRange(monthStr);
-    const filtered=dates.filter(d=>d>=start&&d<=end);
-    return filtered.map(d=>getDSum(meals,d)).reverse();
+    const allDays=[];
+    const s=new Date(start+"T00:00:00");
+    const e=new Date(end+"T00:00:00");
+    for(let d=new Date(s);d<=e;d.setDate(d.getDate()+1)){
+      allDays.push(d.toISOString().split("T")[0]);
+    }
+    return allDays.map(d=>getDSum(meals,d));
   },[dates,meals,monthStr]);
 
   const monthLabel=useMemo(()=>{
@@ -200,9 +215,9 @@ function App(){
   },[monthStr]);
 
   const monthAvg=useMemo(()=>{
-    const w=monthData,l=w.length||1;
+    const w=monthData.filter(d=>d.calories>0),l=w.length||1;
     const avgTarget=w.length?getTargetForDate(targetLog,w[Math.floor(w.length/2)].date):T;
-    return{cal:Math.round(w.reduce((s,d)=>s+d.calories,0)/l),pro:Math.round(w.reduce((s,d)=>s+d.protein,0)/l),fat:Math.round(w.reduce((s,d)=>s+d.fat,0)/l),carb:Math.round(w.reduce((s,d)=>s+d.carbs,0)/l),onT:w.filter(d=>{const t=getTargetForDate(targetLog,d.date);return Math.abs(d.calories-t.calories)<t.calories*0.1}).length,target:avgTarget}
+    return{cal:Math.round(w.reduce((s,d)=>s+d.calories,0)/l),pro:Math.round(w.reduce((s,d)=>s+d.protein,0)/l),fat:Math.round(w.reduce((s,d)=>s+d.fat,0)/l),carb:Math.round(w.reduce((s,d)=>s+d.carbs,0)/l),onT:w.filter(d=>{const t=getTargetForDate(targetLog,d.date);return Math.abs(d.calories-t.calories)<t.calories*0.1}).length,daysWithData:w.length,target:avgTarget}
   },[monthData,targetLog,T]);
 
   function shiftMonth(dir){
@@ -240,7 +255,7 @@ function App(){
     {/* WEEKLY */}
     {view==="weekly"&&<>
       <NavBar label={weekLabel} onPrev={()=>setWeekOff(weekOff+1)} onNext={()=>weekOff>0&&setWeekOff(weekOff-1)}/>
-      <div style={{...sCard,display:"flex",justifyContent:"space-around",padding:"22px 16px"}}><Stat label="Avg Kkal" value={weekAvg.cal} sub={`target: ${weekAvg.target.calories}`}/><Stat label="On Target" value={`${weekAvg.onT}/${weekData.length}`} sub="hari (±10%)"/><Stat label="Avg Protein" value={`${weekAvg.pro}g`} sub={`target: ${weekAvg.target.protein}g`}/></div>
+      <div style={{...sCard,display:"flex",justifyContent:"space-around",padding:"22px 16px"}}><Stat label="Avg Kkal" value={weekAvg.cal} sub={`target: ${weekAvg.target.calories}`}/><Stat label="On Target" value={`${weekAvg.onT}/${weekAvg.daysWithData}`} sub="hari (±10%)"/><Stat label="Avg Protein" value={`${weekAvg.pro}g`} sub={`target: ${weekAvg.target.protein}g`}/></div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:14}}>
         <div style={sCard}><div style={sLabel}>Kalori Harian</div><BarChart data={weekData} targetLog={targetLog} height={160}/></div>
         <div style={sCard}><div style={sLabel}>Rata-rata Macro</div><MacroBar label="Protein" value={weekAvg.pro} target={weekAvg.target.protein} color={C.green}/><MacroBar label="Carbs" value={weekAvg.carb} target={weekAvg.target.carbs} color={C.amber}/><MacroBar label="Fat" value={weekAvg.fat} target={weekAvg.target.fat} color={C.orange}/></div>
@@ -250,7 +265,7 @@ function App(){
     {/* MONTHLY */}
     {view==="monthly"&&<>
       <NavBar label={monthLabel} onPrev={()=>shiftMonth(-1)} onNext={()=>shiftMonth(1)}/>
-      <div style={{...sCard,display:"flex",justifyContent:"space-around",padding:"22px 16px"}}><Stat label="Avg Kkal" value={monthAvg.cal} sub={`target: ${monthAvg.target.calories}`}/><Stat label="On Target" value={`${monthAvg.onT}/${monthData.length}`} sub="hari (±10%)"/><Stat label="Avg Protein" value={`${monthAvg.pro}g`} sub={`target: ${monthAvg.target.protein}g`}/></div>
+      <div style={{...sCard,display:"flex",justifyContent:"space-around",padding:"22px 16px"}}><Stat label="Avg Kkal" value={monthAvg.cal} sub={`target: ${monthAvg.target.calories}`}/><Stat label="On Target" value={`${monthAvg.onT}/${monthAvg.daysWithData}`} sub="hari (±10%)"/><Stat label="Avg Protein" value={`${monthAvg.pro}g`} sub={`target: ${monthAvg.target.protein}g`}/></div>
       <div style={sCard}><div style={sLabel}>Kalori Harian</div><BarChart data={monthData} targetLog={targetLog} height={180}/></div>
       <div style={sCard}><div style={sLabel}>Rata-rata Macro</div><MacroBar label="Protein" value={monthAvg.pro} target={monthAvg.target.protein} color={C.green}/><MacroBar label="Carbs" value={monthAvg.carb} target={monthAvg.target.carbs} color={C.amber}/><MacroBar label="Fat" value={monthAvg.fat} target={monthAvg.target.fat} color={C.orange}/></div>
     </>}
